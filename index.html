@@ -513,43 +513,51 @@
         }
         function cuotasRestantes(g) { return Math.max(0, g.cuotas - (g.cuotasPagadas ? g.cuotasPagadas.length : 0)); }
 
-        function calcularMontoFacturado() {
-    const hoy = new Date();
-    const diaActual = hoy.getDate();
-    const mesActual = hoy.getMonth();
-    const anioActual = hoy.getFullYear();
+       function calcularMontoFacturado() {
+    // Usar el período guardado o calcular el actual
+    let periodoActual = localStorage.getItem('periodo_actual');
     
-    // Determinar el período de facturación actual
-    let inicioPeriodo, finPeriodo;
+    if (!periodoActual) {
+        // Primera vez: calcular según fecha actual
+        const hoy = new Date();
+        const dia = hoy.getDate();
+        const mes = hoy.getMonth();
+        const anio = hoy.getFullYear();
+        
+        if (dia >= 20) {
+            periodoActual = `${anio}-${mes}-20`;
+        } else {
+            periodoActual = `${anio}-${mes-1}-20`;
+        }
+        localStorage.setItem('periodo_actual', periodoActual);
+    }
     
-    if (diaActual >= 19) {
-        // Estamos en el período: 19 de este mes → 18 del próximo mes
-        inicioPeriodo = new Date(anioActual, mesActual, 19);
-        finPeriodo = new Date(anioActual, mesActual + 1, 18);
-    } else {
-        // Estamos en el período: 19 del mes anterior → 18 de este mes
-        inicioPeriodo = new Date(anioActual, mesActual - 1, 19);
-        finPeriodo = new Date(anioActual, mesActual, 18);
+    const [anioIni, mesIni, diaIni] = periodoActual.split('-').map(Number);
+    const inicioPeriodo = new Date(anioIni, mesIni, 20);
+    const finPeriodo = new Date(anioIni, mesIni + 1, 19);
+    
+    // Mostrar el período en pantalla
+    const fechaStr = `20/${String(mesIni + 1).padStart(2,'0')}/${anioIni} - 19/${String(mesIni + 2).padStart(2,'0')}/${anioIni}`;
+    const fechaItems = document.querySelectorAll('.fecha-item .valor');
+    if (fechaItems.length >= 1) {
+        fechaItems[0].textContent = fechaStr;
     }
     
     let totalFacturado = 0;
     
     datos.gastos.forEach(g => {
-        // Solo compras marcadas como "antes" (este período)
         if (g.tipoFacturacion === 'despues') return;
         
         const cuotaMens = cuotaMensual(g);
         const fechaInicio = new Date(g.fecha + 'T00:00:00');
         const pagadasSet = new Set(g.cuotasPagadas || []);
         
-        // Recorrer cada cuota de la compra
         for (let i = 0; i < g.cuotas; i++) {
-            if (pagadasSet.has(i)) continue; // Saltar cuotas pagadas
+            if (pagadasSet.has(i)) continue;
             
             const fechaCuota = new Date(fechaInicio);
             fechaCuota.setMonth(fechaCuota.getMonth() + i);
             
-            // Verificar si esta cuota cae en el período actual
             if (fechaCuota >= inicioPeriodo && fechaCuota <= finPeriodo) {
                 totalFacturado += cuotaMens;
             }
@@ -558,7 +566,6 @@
     
     return totalFacturado;
 }
-
 function actualizarFechasFacturacion() {
     const hoy = new Date();
     const diaActual = hoy.getDate();
@@ -581,7 +588,15 @@ function actualizarFechasFacturacion() {
         fechaItems[0].textContent = inicioStr;
     }
 }
-        
+        function avanzarPeriodo() {
+    let periodoActual = localStorage.getItem('periodo_actual');
+    const [anio, mes] = periodoActual.split('-').map(Number);
+    
+    // Siguiente período
+    const nuevoMes = mes + 1;
+    const nuevoPeriodo = `${anio}-${nuevoMes}-20`;
+    localStorage.setItem('periodo_actual', nuevoPeriodo);
+}
         function proyeccionCuotas() {
             const proy = {};
             datos.gastos.forEach(g => {
@@ -830,15 +845,30 @@ function actualizarFechasFacturacion() {
             document.getElementById('montoPago').value = fact ? fact.monto : '';
         });
 
-        document.getElementById('formPago').addEventListener('submit', e => {
+       document.getElementById('formPago').addEventListener('submit', e => {
             e.preventDefault();
             const monto = parseInt(document.getElementById('montoPago').value);
             const fact = datos.historicoFacturaciones[datos.historicoFacturaciones.length - 1];
-            if (fact && !isNaN(monto)) fact.pagado += monto;
+            const montoFacturado = calcularMontoFacturado();
+            
+            if (fact && !isNaN(monto)) {
+                fact.pagado += monto;
+                
+                // Si pagó el total o más, avanzar al siguiente período
+                if (fact.pagado >= montoFacturado) {
+                    avanzarPeriodo();
+                    fact.pagado = 0;
+                    fact.monto = 0;
+                    mostrarToast('✅ Pago registrado. Período avanzado.');
+                } else {
+                    mostrarToast('💵 Pago parcial registrado.');
+                }
+            }
+            
             guardarYSinc();
             document.getElementById('modalPago').style.display = 'none';
             document.getElementById('formPago').reset();
-        });
+        });        
 
         document.getElementById('tipoPago').addEventListener('change', function() {
             const fact = datos.historicoFacturaciones[datos.historicoFacturaciones.length - 1];
