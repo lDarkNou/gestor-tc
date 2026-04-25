@@ -361,35 +361,40 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw84BDnoMaAejkR
 const USAR_SINCRONIZACION = true;
 
 // ============ SINCRONIZACIÓN ============
-async function sincronizar() {
-    const badge = document.getElementById('syncBadge');
-    badge.textContent = '🔄 Conectando...';
-    badge.className = 'sync-badge';
+const GOOGLE_SCRIPT_URL = 'TU_URL_DE_APPS_SCRIPT/exec';
+const USAR_SINCRONIZACION = true;
 
+async function guardarEnNube() {
+    if (!USAR_SINCRONIZACION) return;
     try {
-        // Leer de Google Sheets (API Key - sin CORS)
-        const resp = await fetch(SHEET_URL);
-        if (!resp.ok) throw new Error('Error de red');
-        const data = await resp.json();
-        const valor = data.values && data.values[0] && data.values[0][0];
+        const iframe = document.createElement('iframe');
+        iframe.name = 'hidden_frame_' + Date.now();
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
         
-        if (valor && valor !== '' && valor !== '{}') {
-            const datosNube = JSON.parse(valor);
-            if (datosNube && datosNube.gastos && datosNube.gastos.length > 0) {
-                datos = datosNube;
-                badge.textContent = '🟢 Sincronizado';
-                badge.className = 'sync-badge';
-                return;
-            }
-        }
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GOOGLE_SCRIPT_URL;
+        form.target = iframe.name;
         
-        badge.textContent = '💾 Datos locales (nube vacía)';
-        badge.className = 'sync-badge local';
-        await guardarEnNube();
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(datos);
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        
+        setTimeout(() => {
+            document.body.removeChild(form);
+            document.body.removeChild(iframe);
+        }, 3000);
+        
+        document.getElementById('syncBadge').textContent = '🟢 Guardado en nube';
+        document.getElementById('syncBadge').className = 'sync-badge';
     } catch (e) {
-        console.error('Error sincronizando:', e);
-        badge.textContent = '🟡 Sin conexión';
-        badge.className = 'sync-badge local';
+        console.error('Error guardando:', e);
     }
 }
 
