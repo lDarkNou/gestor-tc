@@ -450,6 +450,8 @@
     let total = 0;
     datos.gastos.forEach(g => {
         if (g.tipoFacturacion === 'despues') return;
+        // Si es 00/XX no se cobra
+        if (g.cuotasPagadas && g.cuotasPagadas.length >= g.cuotas) return;
         total += cuotaMensual(g);
     });
     return total;
