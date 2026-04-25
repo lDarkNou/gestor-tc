@@ -446,39 +446,12 @@
         function prepagoTotal() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
         function cupoUtilizado() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
 
-        function calcularMontoFacturado() {
-    let periodoActual = localStorage.getItem('periodo_actual');
-    if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
-    const [anioIni, mesIni] = periodoActual.split('-').map(Number);
-    const inicio = new Date(anioIni, mesIni, 20);
-    const fin = new Date(anioIni, mesIni + 1, 19);
+      function calcularMontoFacturado() {
     let total = 0;
-    
     datos.gastos.forEach(g => {
         if (g.tipoFacturacion === 'despues') return;
-        const cm = cuotaMensual(g);
-        const ini = fechaPrimeraCuota(g);
-        const pagSet = new Set(g.cuotasPagadas || []);
-        const fc = new Date(g.fecha + 'T00:00:00');
-        const esEntel = g.descripcion.includes('Entel Ventas');
-        
-        if (g.cuotas === 1 && fc >= inicio && fc <= fin && !pagSet.has(0)) {
-            total += g.montoTotal;
-            return;
-        }
-        
-        if (g.cuotas > 1 && !esEntel && fc >= inicio && fc <= fin && !pagSet.has(0)) {
-            total += cm;
-            return;
-        }
-        
-        for (let i = 0; i < g.cuotas; i++) {
-            if (pagSet.has(i)) continue;
-            const vc = new Date(ini); vc.setMonth(vc.getMonth() + i);
-            if (vc >= inicio && vc <= fin) total += cm;
-        }
+        total += cuotaMensual(g);
     });
-    
     return total;
 }
        function calcularTotalesPorPersona() {
