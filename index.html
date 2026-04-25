@@ -450,18 +450,40 @@
         }
         
         async function guardarEnNube() {
-            if (!USAR_SINCRONIZACION) return;
-            try {
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(datos),
-                });
-                document.getElementById('syncBadge').textContent = '🟢 Sincronizado';
-                document.getElementById('syncBadge').className = 'sync-badge';
-            } catch (e) {
-                console.error('Error guardando:', e);
-            }
-        }
+    if (!USAR_SINCRONIZACION) return;
+    try {
+        // Usamos un formulario POST invisible para evitar CORS
+        const iframe = document.createElement('iframe');
+        iframe.name = 'hidden_iframe_' + Date.now();
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GOOGLE_SCRIPT_URL;
+        form.target = iframe.name;
+        form.style.display = 'none';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'data';
+        input.value = JSON.stringify(datos);
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        
+        setTimeout(() => {
+            document.body.removeChild(form);
+            document.body.removeChild(iframe);
+        }, 2000);
+        
+        document.getElementById('syncBadge').textContent = '🟢 Sincronizado';
+        document.getElementById('syncBadge').className = 'sync-badge';
+    } catch (e) {
+        console.error('Error guardando:', e);
+    }
+}
 
         async function guardarEnNube() {
     if (!USAR_SINCRONIZACION) return;
