@@ -218,6 +218,7 @@
     </div>
 
     <!-- MODAL COMPRA -->
+       <!-- MODAL COMPRA -->
     <div id="modalCompra" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -227,6 +228,11 @@
                 <div class="form-group"><label>Comercio</label><input type="text" id="descripcion" placeholder="Ej: Falabella.com" required></div>
                 <div class="form-group"><label>Monto Total $</label><input type="number" id="montoTotal" placeholder="0" required></div>
                 <div class="form-group"><label>Cuotas</label><input type="number" id="cuotas" value="1" min="1" max="36" required></div>
+                <div class="form-group">
+                    <label>Valor de cada cuota $ (opcional, solo si tiene interés)</label>
+                    <input type="number" id="valorCuota" placeholder="Se calcula automáticamente">
+                    <small style="color:#888;font-size:0.7rem;">Dejar vacío si es sin interés</small>
+                </div>
                 <div class="form-group"><label>¿Para quién?</label><select id="persona"></select></div>
                 <div class="form-group"><label>Facturación</label><select id="tipoFacturacion"><option value="antes">Este período</option><option value="despues">Próximo período</option></select></div>
                 <button type="submit" class="btn-primary">💾 Guardar Compra</button>
@@ -397,6 +403,15 @@
             if (g) { g.persona = nuevaPersona; guardarYSinc(); verCuotas(gastoId); }
         }
 
+        function cambiarValorCuota(gastoId, nuevoValor) {
+            const g = datos.gastos.find(x => x.id === gastoId);
+            if (g) {
+                g.valorCuota = parseInt(nuevoValor) || 0;
+                guardarYSinc();
+                verCuotas(gastoId);
+            }
+        }
+        
         function eliminarCompra(gastoId) {
             if (confirm('¿Eliminar esta compra? No se puede deshacer.')) {
                 datos.gastos = datos.gastos.filter(g => g.id !== gastoId);
@@ -475,7 +490,10 @@
         }
 
         // ============ FUNCIONES ============
-        function cuotaMensual(g) { return Math.round(g.montoTotal / g.cuotas); }
+        function cuotaMensual(g) {
+            if (g.valorCuota && g.valorCuota > 0) return g.valorCuota;
+            return Math.round(g.montoTotal / g.cuotas);
+        }
         function cuotasRestantes(g) { return Math.max(0, g.cuotas - (g.cuotasPagadas ? g.cuotasPagadas.length : 0)); }
 
         function proyeccionCuotas() {
@@ -601,6 +619,12 @@
     let h = `<p><strong>${g.descripcion}</strong></p>
         <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
         <p>$${g.montoTotal.toLocaleString('es-CL')} en ${g.cuotas} cuotas de $${cm.toLocaleString('es-CL')}</p>
+        <p style="font-size:0.8rem;margin:4px 0;">
+            💰 Valor cuota: $<input type="number" id="editVC_${g.id}" value="${g.valorCuota || cm}" 
+            style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:100px;font-size:0.8rem;"
+            onchange="cambiarValorCuota(${g.id}, this.value)">
+            ${g.valorCuota > 0 ? '<span style="color:var(--accent2);"> (con interés)</span>' : '<span style="color:var(--accent);"> (sin interés)</span>'}
+        </p>
         <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
         <hr style="border-color:var(--border);margin:10px 0">`;
     for (let i = 0; i < g.cuotas; i++) {
@@ -682,23 +706,24 @@
             document.getElementById('fechaCompra').valueAsDate = new Date();
         });
 
-        document.getElementById('formCompra').addEventListener('submit', e => {
-            e.preventDefault();
-            const g = {
-                id: Date.now(),
-                fecha: document.getElementById('fechaCompra').value,
-                descripcion: document.getElementById('descripcion').value.trim(),
-                montoTotal: parseInt(document.getElementById('montoTotal').value),
-                cuotas: parseInt(document.getElementById('cuotas').value),
-                persona: document.getElementById('persona').value,
-                tipoFacturacion: document.getElementById('tipoFacturacion').value,
-                cuotasPagadas: [],
-            };
-            if (!g.descripcion || isNaN(g.montoTotal) || g.montoTotal <= 0) { alert('Completa todos los campos'); return; }
-            datos.gastos.push(g);
-            guardarYSinc();
-            document.getElementById('modalCompra').style.display = 'none';
-            document.getElementById('formCompra').reset();
+      document.getElementById('formCompra').addEventListener('submit', e => {
+                e.preventDefault();
+                const g = {
+                    id: Date.now(),
+                    fecha: document.getElementById('fechaCompra').value,
+                    descripcion: document.getElementById('descripcion').value.trim(),
+                    montoTotal: parseInt(document.getElementById('montoTotal').value),
+                    cuotas: parseInt(document.getElementById('cuotas').value),
+                    valorCuota: parseInt(document.getElementById('valorCuota').value) || 0,
+                    persona: document.getElementById('persona').value,
+                    tipoFacturacion: document.getElementById('tipoFacturacion').value,
+                    cuotasPagadas: [],
+                };
+                if (!g.descripcion || isNaN(g.montoTotal) || g.montoTotal <= 0) { alert('Completa todos los campos'); return; }
+                datos.gastos.push(g);
+                guardarYSinc();
+                document.getElementById('modalCompra').style.display = 'none';
+                document.getElementById('formCompra').reset();
         });
 
         document.querySelector('.btn-pago-flotante').addEventListener('click', () => {
