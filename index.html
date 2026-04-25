@@ -148,8 +148,8 @@
 
         <section class="resumen-card">
             <div class="fechas-info">
-                <div class="fecha-item"><span class="label">📅 Facturación</span><span class="valor">19/04/2026</span></div>
-                <div class="fecha-item"><span class="label">⏰ Pago hasta</span><span class="valor">05/05/2026</span></div>
+               <div class="fecha-item"><span class="label">📅 Facturación</span><span class="valor" id="periodoFacturacion">20/03/2026 - 19/04/2026</span></div>
+               <div class="fecha-item"><span class="label">⏰ Pago hasta</span><span class="valor" id="fechaLimitePago">05/05/2026</span></div>
             </div>
             <div class="montos-grid">
                 <div class="monto-item"><span class="label">Facturado</span><span class="valor facturado" id="montoFacturado">$0</span></div>
@@ -567,35 +567,26 @@
     return totalFacturado;
 }
 function actualizarFechasFacturacion() {
-    const hoy = new Date();
-    const diaActual = hoy.getDate();
-    const mesActual = hoy.getMonth();
-    const anioActual = hoy.getFullYear();
-    
-    let inicioStr, finStr;
-    
-    if (diaActual >= 19) {
-        inicioStr = `19/${String(mesActual + 1).padStart(2,'0')}/${anioActual}`;
-        finStr = `18/${String(mesActual + 2).padStart(2,'0')}/${anioActual}`;
-    } else {
-        inicioStr = `19/${String(mesActual).padStart(2,'0')}/${anioActual}`;
-        finStr = `18/${String(mesActual + 1).padStart(2,'0')}/${anioActual}`;
-    }
-    
-    // Actualizar las fechas en el header
-    const fechaItems = document.querySelectorAll('.fecha-item .valor');
-    if (fechaItems.length >= 2) {
-        fechaItems[0].textContent = inicioStr;
-    }
-}
-        function avanzarPeriodo() {
     let periodoActual = localStorage.getItem('periodo_actual');
+    if (!periodoActual) {
+        periodoActual = '2026-2-20'; // Marzo 2026
+        localStorage.setItem('periodo_actual', periodoActual);
+    }
+    
     const [anio, mes] = periodoActual.split('-').map(Number);
     
-    // Siguiente período
-    const nuevoMes = mes + 1;
-    const nuevoPeriodo = `${anio}-${nuevoMes}-20`;
-    localStorage.setItem('periodo_actual', nuevoPeriodo);
+    // Período facturación: 20/mes al 19/mes+1
+    const inicio = `20/${String(mes + 1).padStart(2,'0')}/${anio}`;
+    const fin = `19/${String(mes + 2).padStart(2,'0')}/${anio}`;
+    
+    // Fecha límite de pago: 05 del mes siguiente al cierre
+    const limitePago = `05/${String(mes + 3).padStart(2,'0')}/${anio}`;
+    
+    const periodoEl = document.getElementById('periodoFacturacion');
+    const pagoEl = document.getElementById('fechaLimitePago');
+    
+    if (periodoEl) periodoEl.textContent = inicio + ' - ' + fin;
+    if (pagoEl) pagoEl.textContent = limitePago;
 }
         function proyeccionCuotas() {
             const proy = {};
@@ -641,15 +632,31 @@ function actualizarFechasFacturacion() {
         }
 
         function alertaVencimiento() {
-            const a = document.getElementById('alertaVencimiento');
-            const hoy = new Date();
-            const diff = CONFIG.fechaPago.getTime() - hoy.getTime();
-            const dias = Math.ceil(diff / 86400000);
-            if (dias < 0) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡VENCIDO! Tu pago venció hace ' + Math.abs(dias) + ' días'; }
-            else if (dias <= 3) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡Urgente! Pago en ' + dias + ' días'; }
-            else if (dias <= 7) { a.className = 'alerta-vencimiento amarilla'; a.innerHTML = '⚠️ Pago en ' + dias + ' días'; }
-            else { a.className = 'alerta-vencimiento hidden'; }
-        }
+    const a = document.getElementById('alertaVencimiento');
+    let periodoActual = localStorage.getItem('periodo_actual');
+    if (!periodoActual) return;
+    
+    const [anio, mes] = periodoActual.split('-').map(Number);
+    
+    // Fecha límite: 05 del mes siguiente al cierre (mes+2 porque mes es base 0)
+    const fechaLimite = new Date(anio, mes + 2, 5);
+    const hoy = new Date();
+    const diff = fechaLimite.getTime() - hoy.getTime();
+    const dias = Math.ceil(diff / 86400000);
+    
+    if (dias < 0) {
+        a.className = 'alerta-vencimiento';
+        a.innerHTML = '🔴 ¡VENCIDO! Tu pago venció hace ' + Math.abs(dias) + ' días';
+    } else if (dias <= 3) {
+        a.className = 'alerta-vencimiento';
+        a.innerHTML = '🔴 ¡Urgente! Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')';
+    } else if (dias <= 7) {
+        a.className = 'alerta-vencimiento amarilla';
+        a.innerHTML = '⚠️ Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')';
+    } else {
+        a.className = 'alerta-vencimiento hidden';
+    }
+}
 
         function renderizarPanelActivo() {
             const tab = document.querySelector('.tab.active');
