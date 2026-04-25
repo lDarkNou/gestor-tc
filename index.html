@@ -331,18 +331,7 @@
         }
 
         // ============ GESTIÓN DE PERSONAS ============
-       async function obtenerPersonas() {
-            try {
-                const doc = await db.collection('datos').doc('personas').get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    if (data && data.lista && Array.isArray(data.lista) && data.lista.length > 0) {
-                        localStorage.setItem('gestor_tc_personas', JSON.stringify(data.lista));
-                        return data.lista;
-                    }
-                }
-            } catch(e) {}
-            
+      function obtenerPersonas() {
             const guardado = localStorage.getItem('gestor_tc_personas');
             if (guardado) {
                 try {
@@ -351,17 +340,17 @@
                 } catch(e) {}
             }
             return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
-    }
-       function guardarPersonas(personas) {
-    if (!Array.isArray(personas)) return;
-    localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
-    try {
-        db.collection('datos').doc('personas').set({ lista: personas });
-    } catch(e) {}
-}
+        }
+               function guardarPersonas(personas) {
+            if (!Array.isArray(personas)) return;
+            localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
+            try {
+                db.collection('datos').doc('personas').set({ lista: personas });
+            } catch(e) {}
+        }
 
-        async function actualizarSelectsPersonas() {
-            const personas = await obtenerPersonas();
+        function actualizarSelectsPersonas() {
+            const personas = obtenerPersonas();
             const opciones = personas.map(p => `<option value="${p}">${p}</option>`).join('');
             const fp = document.getElementById('filtroPersona');
             if (fp) fp.innerHTML = '<option value="todos">Todos</option>' + opciones;
@@ -369,8 +358,8 @@
             if (p) p.innerHTML = opciones;
         }
 
-       async function renderizarPersonas() {
-            const personas = await obtenerPersonas();
+       function renderizarPersonas() {
+            const personas = obtenerPersonas();
             const cont = document.getElementById('listaPersonas');
             if (!cont) return;
             cont.innerHTML = personas.map((p, i) => `
@@ -381,14 +370,13 @@
             `).join('');
             document.querySelectorAll('.input-persona').forEach(inp => {
                 inp.addEventListener('change', function() {
-                    obtenerPersonas().then(personas => {
-                        personas[this.dataset.index] = this.value;
-                        guardarPersonas(personas);
-                        actualizarSelectsPersonas();
-                    });
+                    const personas = obtenerPersonas();
+                    personas[this.dataset.index] = this.value;
+                    guardarPersonas(personas);
+                    actualizarSelectsPersonas();
                 });
-            });
-        }
+                    });
+}
 
         function eliminarPersona(index) {
             const personas = obtenerPersonas();
@@ -426,14 +414,15 @@
 
         // ============ SINCRONIZACIÓN ============
      // ============ SINCRONIZACIÓN FIREBASE ============
-        async function guardarEnNube() {
+                async function guardarEnNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                if (!firebase.auth().currentUser) {
-                    await firebase.auth().signInAnonymously();
-                }
-                const uid = firebase.auth().currentUser.uid;
-                await db.collection('datos').doc(uid).set(datos);
+                const personas = JSON.parse(localStorage.getItem('gestor_tc_personas') || '["Titular","Persona 1","Persona 2","Persona 3"]');
+                const datosCompletos = {
+                    ...datos,
+                    personas: personas
+                };
+                await db.collection('datos').doc('principal').set(datosCompletos);
                 badge.textContent = '🟢 Sincronizado';
                 badge.className = 'sync-badge';
             } catch(e) {
@@ -446,18 +435,20 @@
         async function cargarDeNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                if (!firebase.auth().currentUser) {
-                    await firebase.auth().signInAnonymously();
+                const doc = await db.collection('datos').doc('principal').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.gastos && data.gastos.length > 0) {
+                        datos = { gastos: data.gastos, historicoFacturaciones: data.historicoFacturaciones, tema: data.tema || 'dark' };
+                        if (data.personas && Array.isArray(data.personas)) {
+                            localStorage.setItem('gestor_tc_personas', JSON.stringify(data.personas));
+                        }
+                        badge.textContent = '🟢 Sincronizado';
+                        badge.className = 'sync-badge';
+                        return true;
+                    }
                 }
-                const uid = firebase.auth().currentUser.uid;
-                const doc = await db.collection('datos').doc(uid).get();
-                if (doc.exists && doc.data().gastos && doc.data().gastos.length > 0) {
-                    datos = doc.data();
-                    badge.textContent = '🟢 Sincronizado';
-                    badge.className = 'sync-badge';
-                    return true;
-                }
-                badge.textContent = '💾 Local';
+                badge.textContent = '💾 Local (nube vacía)';
                 badge.className = 'sync-badge local';
                 return false;
             } catch(e) {
@@ -591,26 +582,26 @@
             g.innerHTML = datos.historicoFacturaciones.map(h => `<div class="barra-item"><div class="barra facturado" style="height:${Math.max(4,(h.monto/max)*100)}px"></div><div class="barra pagado" style="height:${Math.max(4,(h.pagado/max)*100)}px"></div><div class="barra-label">${h.periodo.split(' - ')[1]?.split('/')[0]||''}/${h.periodo.split('/')[2]?.slice(2,4)||''}</div><div class="barra-valor">$${Math.round(h.monto/1000)}k</div></div>`).join('');
         }
 
-        async function verCuotas(id) {
-            const g = datos.gastos.find(x => x.id === id);
-            if (!g) return;
-            const cm = cuotaMensual(g);
-            const pagSet = new Set(g.cuotasPagadas || []);
-            const personas = await obtenerPersonas();
-            const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
-            let h = `<p><strong>${g.descripcion}</strong></p>
-                <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
-                <p>$${g.montoTotal.toLocaleString('es-CL')} en ${g.cuotas} cuotas de $${cm.toLocaleString('es-CL')}</p>
-                <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
-                <hr style="border-color:var(--border);margin:10px 0">`;
-            for (let i = 0; i < g.cuotas; i++) {
-                const fc = new Date(g.fecha + 'T00:00:00'); fc.setMonth(fc.getMonth() + i);
-                h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cm.toLocaleString('es-CL')}</span></div>`;
-            }
-            h += `<hr style="border-color:var(--border);margin:10px 0"><button onclick="todasCuotas(${g.id})" class="btn-primary btn-sm">✅ Todas</button> <button onclick="ningunaCuota(${g.id})" class="btn-primary btn-sm" style="background:var(--accent2)">❌ Ninguna</button>`;
-            document.getElementById('detalleCuotas').innerHTML = h;
-            document.getElementById('modalCuotas').style.display = 'block';
-        }
+      function verCuotas(id) {
+    const g = datos.gastos.find(x => x.id === id);
+    if (!g) return;
+    const cm = cuotaMensual(g);
+    const pagSet = new Set(g.cuotasPagadas || []);
+    const personas = obtenerPersonas();
+    const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
+    let h = `<p><strong>${g.descripcion}</strong></p>
+        <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
+        <p>$${g.montoTotal.toLocaleString('es-CL')} en ${g.cuotas} cuotas de $${cm.toLocaleString('es-CL')}</p>
+        <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
+        <hr style="border-color:var(--border);margin:10px 0">`;
+    for (let i = 0; i < g.cuotas; i++) {
+        const fc = new Date(g.fecha + 'T00:00:00'); fc.setMonth(fc.getMonth() + i);
+        h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cm.toLocaleString('es-CL')}</span></div>`;
+    }
+    h += `<hr style="border-color:var(--border);margin:10px 0"><button onclick="todasCuotas(${g.id})" class="btn-primary btn-sm">✅ Todas</button> <button onclick="ningunaCuota(${g.id})" class="btn-primary btn-sm" style="background:var(--accent2)">❌ Ninguna</button>`;
+    document.getElementById('detalleCuotas').innerHTML = h;
+    document.getElementById('modalCuotas').style.display = 'block';
+}
 
         function toggleCuota(gid, idx, chk) {
             const g = datos.gastos.find(x => x.id === gid);
