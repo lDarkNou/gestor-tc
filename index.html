@@ -446,12 +446,10 @@
         function prepagoTotal() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
         function cupoUtilizado() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
 
-      function calcularMontoFacturado() {
+    function calcularMontoFacturado() {
     let total = 0;
     datos.gastos.forEach(g => {
         if (g.tipoFacturacion === 'despues') return;
-        // Si es 00/XX no se cobra
-        if (g.cuotasPagadas && g.cuotasPagadas.length >= g.cuotas) return;
         total += cuotaMensual(g);
     });
     return total;
