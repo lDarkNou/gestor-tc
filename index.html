@@ -354,113 +354,56 @@
 
     <script>
         // ============ CONFIGURACIÓN ============
-        // ⚠️ PEGA AQUÍ TU URL DE GOOGLE APPS SCRIPT (entre las comillas)
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw84BDnoMaAejkRo-GLSufGu8TZXt672IdkSZS6lbT1FldlgQCNfdVrJ3GCSUmoRiXH/exec';
-        const USAR_SINCRONIZACION = GOOGLE_SCRIPT_URL !== 'TU_URL_AQUI';
+const SHEET_ID = '1LkrTZ1r5YlgTT6e_FNtIhuygRRBcJienyrEFBMwZGtw';
+const API_KEY = 'AIzaSyCnHuUS1G7Odxc254_Ddp6CYmLD48rdjQ0';
+const SHEET_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A2?key=${API_KEY}`;
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw84BDnoMaAejkRo-GLSuFGu8TZXt672IdkSZ56IbT1FldlqGCNfdvRJ3GCSUmoR1XH/exec';
+const USAR_SINCRONIZACION = true;
 
-        const CONFIG = {
-            fechaFacturacion: new Date(2026, 3, 19),
-            fechaPago: new Date(2026, 4, 5),
-            cupoCompras: 3540000,
-            tasas: { rotativo: 0.0279, cuotas: 0.0427, avances: 0.0427 },
-        };
+// ============ SINCRONIZACIÓN ============
+async function sincronizar() {
+    const badge = document.getElementById('syncBadge');
+    badge.textContent = '🔄 Conectando...';
+    badge.className = 'sync-badge';
 
-        // ============ DATOS INICIALES ============
-        const DATOS_INICIALES = {
-            gastos: [
-                { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 2, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: 'Persona 1', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 3, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: 'Persona 2', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 4, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 5, fecha: '2026-01-09', descripcion: 'Hip Lider Copiapó', montoTotal: 121228, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 6, fecha: '2026-02-21', descripcion: 'Unimarc Caldera', montoTotal: 106250, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 7, fecha: '2026-02-21', descripcion: 'Corralero Plaza', montoTotal: 32079, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 8, fecha: '2026-03-19', descripcion: 'DI*Google Youtube', montoTotal: 790, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 9, fecha: '2026-03-21', descripcion: 'Unimarc Caldera I', montoTotal: 78074, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 10, fecha: '2026-03-23', descripcion: 'DI*Google Youtube', montoTotal: 5500, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 11, fecha: '2026-03-28', descripcion: 'Mp *Mercado Libre', montoTotal: 71800, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 12, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 27180, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 13, fecha: '2026-03-31', descripcion: 'Ebenezer Ltda', montoTotal: 40000, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 14, fecha: '2026-04-02', descripcion: 'Hiper Copiapó', montoTotal: 143424, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 15, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 16, fecha: '2026-04-12', descripcion: 'Copiapó 3', montoTotal: 23980, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 17, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 18, fecha: '2026-04-17', descripcion: 'Seguro Desgravamen', montoTotal: 3116, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 19, fecha: '2026-04-17', descripcion: 'Seguro Cesantía', montoTotal: 4115, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 20, fecha: '2026-04-19', descripcion: 'Servicio Administración', montoTotal: 13990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 21, fecha: '2026-04-19', descripcion: 'Impuesto 0,8% anual', montoTotal: 4284, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-            ],
-            historicoFacturaciones: [
-                { periodo: '20/02 - 19/03/2026', monto: 371440, pagado: 371440, fechaPago: '2026-04-04' },
-                { periodo: '20/03 - 19/04/2026', monto: 475880, pagado: 0, fechaPago: null },
-            ],
-            tema: 'dark',
-        };
-
-        let datos = JSON.parse(JSON.stringify(DATOS_INICIALES));
-
-        // ============ SINCRONIZACIÓN ============
-        async function sincronizar() {
-            const badge = document.getElementById('syncBadge');
-            badge.textContent = '🔄 Conectando...';
-            badge.className = 'sync-badge';
+    try {
+        // Leer de Google Sheets (API Key - sin CORS)
+        const resp = await fetch(SHEET_URL);
+        if (!resp.ok) throw new Error('Error de red');
+        const data = await resp.json();
+        const valor = data.values && data.values[0] && data.values[0][0];
         
-            if (!USAR_SINCRONIZACION) {
-                badge.textContent = '💾 Datos locales';
-                badge.className = 'sync-badge local';
+        if (valor && valor !== '' && valor !== '{}') {
+            const datosNube = JSON.parse(valor);
+            if (datosNube && datosNube.gastos && datosNube.gastos.length > 0) {
+                datos = datosNube;
+                badge.textContent = '🟢 Sincronizado';
+                badge.className = 'sync-badge';
                 return;
-            }
-        
-            try {
-                const datosNube = await new Promise((resolve, reject) => {
-                    const callback = 'jsonp_' + Date.now();
-                    window[callback] = function(data) {
-                        delete window[callback];
-                        resolve(data);
-                    };
-                    const script = document.createElement('script');
-                    script.src = GOOGLE_SCRIPT_URL + '?callback=' + callback;
-                    script.onerror = function() {
-                        delete window[callback];
-                        reject(new Error('Error de red'));
-                    };
-                    document.head.appendChild(script);
-                    setTimeout(() => {
-                        if (window[callback]) {
-                            delete window[callback];
-                            reject(new Error('Timeout'));
-                        }
-                    }, 10000);
-                });
-        
-                if (datosNube && datosNube.gastos && datosNube.gastos.length > 0) {
-                    datos = datosNube;
-                    badge.textContent = '🟢 Sincronizado';
-                    badge.className = 'sync-badge';
-                } else {
-                    badge.textContent = '💾 Datos locales (nube vacía)';
-                    badge.className = 'sync-badge local';
-                    await guardarEnNube();
-                }
-            } catch (e) {
-                console.error('Error sincronizando:', e);
-                badge.textContent = '🟡 Sin conexión - Datos locales';
-                badge.className = 'sync-badge local';
             }
         }
         
-        async function guardarEnNube() {
-    if (!USAR_SINCRONIZACION) return;
+        badge.textContent = '💾 Datos locales (nube vacía)';
+        badge.className = 'sync-badge local';
+        await guardarEnNube();
+    } catch (e) {
+        console.error('Error sincronizando:', e);
+        badge.textContent = '🟡 Sin conexión';
+        badge.className = 'sync-badge local';
+    }
+}
+
+async function guardarEnNube() {
     try {
-        // Usamos un formulario POST invisible para evitar CORS
+        // Guardar vía formulario POST (Apps Script - sin CORS)
         const iframe = document.createElement('iframe');
-        iframe.name = 'hidden_iframe_' + Date.now();
+        iframe.name = 'hidden_frame_' + Date.now();
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
         
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = GOOGLE_SCRIPT_URL;
+        form.action = APPS_SCRIPT_URL;
         form.target = iframe.name;
         form.style.display = 'none';
         
@@ -476,27 +419,8 @@
         setTimeout(() => {
             document.body.removeChild(form);
             document.body.removeChild(iframe);
-        }, 2000);
+        }, 3000);
         
-        document.getElementById('syncBadge').textContent = '🟢 Sincronizado';
-        document.getElementById('syncBadge').className = 'sync-badge';
-    } catch (e) {
-        console.error('Error guardando:', e);
-    }
-}
-
-        async function guardarEnNube() {
-    if (!USAR_SINCRONIZACION) return;
-    try {
-        const formData = new FormData();
-        formData.append('data', JSON.stringify(datos));
-        
-        await fetch(GOOGLE_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(datos),
-            mode: 'no-cors'
-        });
-        // Con no-cors no podemos leer la respuesta, pero los datos se envían
         document.getElementById('syncBadge').textContent = '🟢 Sincronizado';
         document.getElementById('syncBadge').className = 'sync-badge';
     } catch (e) {
