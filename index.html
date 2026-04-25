@@ -450,54 +450,36 @@
     let periodoActual = localStorage.getItem('periodo_actual');
     if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
     const [anioIni, mesIni] = periodoActual.split('-').map(Number);
-    const inicioPeriodo = new Date(anioIni, mesIni, 20);
-    const finPeriodo = new Date(anioIni, mesIni + 1, 19);
-    
-    let totalFacturado = 0;
-    const cuotasSumadas = new Set(); // Para no duplicar
+    const inicio = new Date(anioIni, mesIni, 20);
+    const fin = new Date(anioIni, mesIni + 1, 19);
+    let total = 0;
     
     datos.gastos.forEach(g => {
         if (g.tipoFacturacion === 'despues') return;
-        
-        const fechaCompra = new Date(g.fecha + 'T00:00:00');
         const cm = cuotaMensual(g);
         const ini = fechaPrimeraCuota(g);
-        const pagadasSet = new Set(g.cuotasPagadas || []);
+        const pagSet = new Set(g.cuotasPagadas || []);
+        const fc = new Date(g.fecha + 'T00:00:00');
+        const esEntel = g.descripcion.includes('Entel Ventas');
         
-        // 1. COMPRAS DE 1 CUOTA hechas en el período → se suman completas
-        if (g.cuotas === 1 && fechaCompra >= inicioPeriodo && fechaCompra <= finPeriodo) {
-            if (!pagadasSet.has(0)) {
-                totalFacturado += g.montoTotal;
-                cuotasSumadas.add(g.id + '_0');
-            }
+        if (g.cuotas === 1 && fc >= inicio && fc <= fin && !pagSet.has(0)) {
+            total += g.montoTotal;
             return;
         }
         
-        // 2. COMPRAS EN CUOTAS hechas en el período → primera cuota si vence en período
-        if (g.cuotas > 1 && fechaCompra >= inicioPeriodo && fechaCompra <= finPeriodo) {
-            if (!pagadasSet.has(0) && ini >= inicioPeriodo && ini <= finPeriodo && !cuotasSumadas.has(g.id + '_0')) {
-                totalFacturado += cm;
-                cuotasSumadas.add(g.id + '_0');
-            }
+        if (g.cuotas > 1 && !esEntel && fc >= inicio && fc <= fin && !pagSet.has(0)) {
+            total += cm;
+            return;
         }
         
-        // 3. CUOTAS que vencen en el período (de compras anteriores)
         for (let i = 0; i < g.cuotas; i++) {
-            const key = g.id + '_' + i;
-            if (cuotasSumadas.has(key)) continue;
-            if (pagadasSet.has(i)) continue;
-            
-            const fc = new Date(ini);
-            fc.setMonth(fc.getMonth() + i);
-            
-            if (fc >= inicioPeriodo && fc <= finPeriodo) {
-                totalFacturado += cm;
-                cuotasSumadas.add(key);
-            }
+            if (pagSet.has(i)) continue;
+            const vc = new Date(ini); vc.setMonth(vc.getMonth() + i);
+            if (vc >= inicio && vc <= fin) total += cm;
         }
     });
     
-    return totalFacturado;
+    return total;
 }
         function calcularTotalesPorPersona() {
             let periodoActual = localStorage.getItem('periodo_actual');
