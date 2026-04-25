@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>💳 Gestor TC</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+    <style>
+        :root {
+            --bg: #0f0f1a;
+            --card-bg: #1a1a2e;
+            --text: #e0e0e0;
+            --accent: #00d4aa;
+            --accent2: #ff6b6b;
+            --warning: #ffa500;
+            --border: #2a2a4a;
+            --btn: #16213e;
+            --shadow: 0 4px 20px rgba(0,0,0,0.3);
+            --purple: #9b59b6;
+        }
+        body.light {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #1a1a2e;
+            --border: #e0e0e0;
+            --btn: #e8e8e8;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            transition: background 0.3s, color 0.3s;
+        }
+        .app-container { width: 100%; max-width: 650px; padding: 12px 12px 80px 12px; }
+        
+        /* Header */
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; }
+        .header-actions { display: flex; gap: 6px; }
+        .btn-icon {
+            background: var(--card-bg); border: 1px solid var(--border); color: var(--text);
+            font-size: 1.2rem; width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: transform 0.2s;
+        }
+        .btn-icon:hover { transform: scale(1.1); }
+        header { text-align: center; margin-bottom: 16px; }
+        header h1 { font-size: 1.8rem; color: var(--accent); }
+        .subtitle { color: var(--accent2); font-weight: bold; font-size: 0.85rem; }
+        .subtitle-small { color: #888; font-size: 0.7rem; margin-bottom: 10px; }
+        .btn-primary {
+            background: var(--accent); color: #000; border: none; padding: 10px 20px;
+            border-radius: 12px; font-size: 0.95rem; font-weight: bold; cursor: pointer;
+            transition: transform 0.2s; width: 100%;
+        }
+        .btn-primary:hover { transform: scale(1.02); }
+        .btn-primary:active { transform: scale(0.97); }
+        .btn-sm { width: auto; padding: 8px 16px; font-size: 0.8rem; display: inline-block; }
+        
+        /* Sync badge */
+        .sync-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.7rem; padding: 4px 10px; border-radius: 20px;
+            background: var(--accent); color: #000; margin-bottom: 8px;
+        }
+        .sync-badge.offline { background: var(--warning); }
+        .sync-badge.error { background: var(--accent2); color: #fff; }
+        
+        /* Alerta */
+        .alerta-vencimiento {
+            background: rgba(255,107,107,0.15); border: 2px solid var(--accent2);
+            color: var(--accent2); text-align: center; padding: 10px; border-radius: 12px;
+            margin-bottom: 12px; font-weight: bold; font-size: 0.9rem;
+        }
+        .alerta-vencimiento.amarilla {
+            background: rgba(255,165,0,0.15); border-color: var(--warning); color: var(--warning);
+        }
+        .alerta-vencimiento.hidden { display: none; }
+        
+        /* Resumen */
+        .resumen-card {
+            background: var(--card-bg); border-radius: 16px; padding: 16px;
+            margin-bottom: 12px; border: 1px solid var(--border); box-shadow: var(--shadow);
+        }
+        .fechas-info { display: flex; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+        .fecha-item { display: flex; flex-direction: column; gap: 2px; }
+        .fecha-item .label { font-size: 0.7rem; color: #888; }
+        .fecha-item .valor { font-weight: bold; font-size: 1rem; }
+        .montos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        @media (min-width: 480px) { .montos-grid { grid-template-columns: 1fr 1fr 1fr 1fr; } }
+        .monto-item {
+            display: flex; flex-direction: column; gap: 2px; text-align: center;
+            padding: 10px 6px; background: rgba(255,255,255,0.03); border-radius: 10px;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .monto-item:active { background: rgba(255,255,255,0.06); }
+        .monto-item .label { font-size: 0.65rem; color: #888; }
+        .monto-item .valor { font-weight: bold; font-size: 0.85rem; }
+        .valor.facturado { color: var(--accent2); }
+        .valor.minimo { color: var(--warning); }
+        .valor.disponible { color: var(--accent); }
+        .valor.prepago { color: var(--purple); }
+        .cupo-bar { text-align: center; }
+        .barra-progreso {
+            width: 100%; height: 8px; background: var(--border); border-radius: 4px;
+            overflow: hidden; margin-bottom: 4px;
+        }
+        .progreso {
+            height: 100%; background: linear-gradient(90deg, var(--accent), #00b894);
+            border-radius: 4px; transition: width 0.5s ease;
+        }
+        .porcentaje { font-size: 0.7rem; color: #888; }
+        
+        /* Filtros */
+        .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; font-size: 0.8rem; }
+        .filtro-grupo { display: flex; align-items: center; gap: 4px; }
+        .filtros select, .filtros input {
+            background: var(--card-bg); color: var(--text); border: 1px solid var(--border);
+            padding: 5px 8px; border-radius: 8px; font-size: 0.8rem;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex; gap: 2px; margin-bottom: 12px; background: var(--card-bg);
+            border-radius: 12px; padding: 3px; border: 1px solid var(--border);
+        }
+        .tab {
+            flex: 1; padding: 8px 4px; background: transparent; color: var(--text);
+            border: none; border-radius: 10px; cursor: pointer; font-size: 0.75rem;
+            font-weight: bold; transition: all 0.2s;
+        }
+        .tab.active { background: var(--accent); color: #000; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        
+        /* Gastos */
+        .gastos-lista, .historico-lista { display: flex; flex-direction: column; gap: 6px; }
+        .gasto-row {
+            background: var(--card-bg); border-radius: 12px; padding: 10px 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid var(--border); cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s; box-shadow: var(--shadow);
+        }
+        .gasto-row:active { transform: scale(0.98); }
+        .gasto-row.pagado { opacity: 0.5; }
+        .gasto-info { flex: 1; min-width: 0; }
+        .gasto-desc {
+            font-weight: bold; font-size: 0.85rem; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+        .gasto-detalle { font-size: 0.7rem; color: #888; margin-top: 2px; }
+        .gasto-persona {
+            font-size: 0.65rem; padding: 1px 7px; border-radius: 8px;
+            background: var(--btn); display: inline-block;
+        }
+        .persona-titular { border-left: 3px solid var(--accent); }
+        .persona-1 { border-left: 3px solid #3498db; }
+        .persona-2 { border-left: 3px solid #e74c3c; }
+        .persona-3 { border-left: 3px solid #f39c12; }
+        .gasto-monto-col { text-align: right; min-width: 90px; }
+        .gasto-monto { font-weight: bold; font-size: 0.9rem; }
+        .gasto-cuotas { font-size: 0.65rem; margin-top: 2px; }
+        .gasto-cuotas.pendiente { color: var(--warning); }
+        .gasto-cuotas.pagado { color: var(--accent); }
+        
+        /* Cuotas */
+        .cuotas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+        .cuota-mes-card {
+            background: var(--card-bg); border-radius: 12px; padding: 12px;
+            text-align: center; border: 1px solid var(--border); cursor: pointer;
+            transition: transform 0.2s; box-shadow: var(--shadow);
+        }
+        .cuota-mes-card:active { transform: scale(0.96); }
+        .cuota-mes { font-weight: bold; color: var(--accent); font-size: 0.8rem; text-transform: capitalize; }
+        .cuota-monto { font-size: 1.1rem; font-weight: bold; margin-top: 4px; }
+        .cuota-count { font-size: 0.65rem; color: #888; margin-top: 2px; }
+        
+        /* Gráfico */
+        .grafico-barras {
+            margin-top: 12px; display: flex; align-items: flex-end; gap: 6px;
+            height: 120px; padding: 8px; background: var(--card-bg);
+            border-radius: 12px; border: 1px solid var(--border);
+        }
+        .barra-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .barra {
+            width: 100%; max-width: 40px; border-radius: 4px 4px 0 0;
+            transition: height 0.5s ease; min-height: 3px;
+        }
+        .barra.facturado { background: var(--accent2); }
+        .barra.pagado { background: var(--accent); }
+        .barra-label { font-size: 0.55rem; color: #888; text-align: center; }
+        .barra-valor { font-size: 0.6rem; font-weight: bold; }
+        
+        /* Interés */
+        .tasas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin: 10px 0; }
+        .tasa-card {
+            background: var(--card-bg); border-radius: 12px; padding: 12px;
+            text-align: center; border: 1px solid var(--border);
+        }
+        .tasa-label { display: block; font-size: 0.7rem; color: #888; }
+        .tasa-valor { display: block; font-size: 1rem; font-weight: bold; color: var(--accent2); }
+        .tasa-cae { display: block; font-size: 0.65rem; color: #888; margin-top: 2px; }
+        .simulador {
+            background: var(--card-bg); border-radius: 12px; padding: 14px;
+            margin-top: 12px; border: 1px solid var(--border);
+        }
+        .simulador-inputs { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+        .simulador-inputs .form-group { flex: 1; min-width: 100px; margin-bottom: 0; }
+        .resultado-sim { margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 0.8rem; }
+        
+        /* Modal */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+            overflow-y: auto; animation: fadeIn 0.2s;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content {
+            background: var(--card-bg); margin: 2% auto; padding: 20px;
+            border-radius: 16px; border: 1px solid var(--border);
+            max-width: 500px; width: 93%; position: relative;
+            animation: slideUp 0.25s;
+        }
+        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .close {
+            position: absolute; right: 14px; top: 10px; font-size: 1.4rem;
+            cursor: pointer; color: #888; z-index: 10;
+        }
+        .modal h2 { color: var(--accent); margin-bottom: 12px; font-size: 1.2rem; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 3px; font-size: 0.8rem; color: #aaa; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 9px 10px; background: var(--bg); color: var(--text);
+            border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
+        .cuota-check-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.8rem;
+        }
+        .cuota-check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); margin-right: 8px; }
+        
+        /* Empty */
+        .empty-state {
+            text-align: center; color: #666; padding: 24px; font-style: italic;
+            background: var(--card-bg); border-radius: 12px; border: 1px dashed var(--border);
+        }
+        
+        /* Botón flotante */
+        .btn-pago-flotante {
+            position: fixed; bottom: 20px; right: 20px; width: 52px; height: 52px;
+            border-radius: 50%; background: var(--accent); color: #000; font-size: 1.4rem;
+            border: none; cursor: pointer; box-shadow: 0 4px 16px rgba(0,212,170,0.4);
+            z-index: 100; transition: transform 0.2s;
+        }
+        .btn-pago-flotante:active { transform: scale(0.9); }
+        
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: var(--accent); color: #000; padding: 8px 20px;
+            border-radius: 20px; font-size: 0.85rem; font-weight: bold;
+            z-index: 2000; animation: toastIn 0.3s, toastOut 0.3s 2s forwards;
+            pointer-events: none;
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+        @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+        
+        @media (max-width: 380px) {
+            .montos-grid { grid-template-columns: 1fr 1fr; }
+            .cuotas-grid { grid-template-columns: 1fr 1fr; }
+            .tabs { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <div class="header-top">
+                <h1>💳 Gestor TC</h1>
+                <div class="header-actions">
+                    <button id="btnExportar" class="btn-icon" title="Exportar a Excel">📥</button>
+                    <button id="btnTema" class="btn-icon" title="Cambiar tema">🌓</button>
+                    <button id="btnSync" class="btn-icon" title="Sincronizar ahora">🔄</button>
+                </div>
+            </div>
+            <span id="syncBadge" class="sync-badge">🟢 Datos locales</span>
+            <p class="subtitle">ALONSO ANTONIO VILLALOBOS TORRES</p>
+            <p class="subtitle-small">Cupón: 19.460.031.03 | Contrato: ****2918</p>
+            <button id="btnNuevaCompra" class="btn-primary">+ Nueva Compra</button>
+        </header>
+
+        <!-- Alerta vencimiento -->
+        <div id="alertaVencimiento" class="alerta-vencimiento hidden"></div>
+
+        <!-- Resumen -->
+        <section class="resumen-card">
+            <div class="fechas-info">
+                <div class="fecha-item"><span class="label">📅 Facturación</span><span class="valor">19/04/2026</span></div>
+                <div class="fecha-item"><span class="label">⏰ Pago hasta</span><span class="valor">05/05/2026</span></div>
+            </div>
+            <div class="montos-grid">
+                <div class="monto-item"><span class="label">Facturado</span><span class="valor facturado" id="montoFacturado">$0</span></div>
+                <div class="monto-item"><span class="label">Mínimo</span><span class="valor minimo" id="montoMinimo">$0</span></div>
+                <div class="monto-item"><span class="label">Disponible</span><span class="valor disponible" id="cupoDisponible">$0</span></div>
+                <div class="monto-item"><span class="label">Prepago</span><span class="valor prepago" id="montoPrepago">$0</span></div>
+            </div>
+            <div class="cupo-bar">
+                <div class="barra-progreso"><div class="progreso" id="barraProgreso" style="width:0%"></div></div>
+                <span class="porcentaje" id="porcentajeCupo">0% cupo utilizado</span>
+            </div>
+        </section>
+
+        <!-- Filtros -->
+        <section class="filtros">
+            <div class="filtro-grupo"><label>👤</label><select id="filtroPersona"><option value="todos">Todos</option><option value="Titular">Titular</option><option value="Persona 1">Persona 1</option><option value="Persona 2">Persona 2</option><option value="Persona 3">Persona 3</option></select></div>
+            <div class="filtro-grupo"><label>📅</label><input type="month" id="filtroMes"></div>
+            <div class="filtro-grupo"><select id="filtroEstado"><option value="todos">Todos</option><option value="pendientes">Pendientes</option><option value="pagados">Pagados</option></select></div>
+        </section>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="gastos">📋 Gastos</button>
+            <button class="tab" data-tab="cuotas">📆 Cuotas</button>
+            <button class="tab" data-tab="historico">📊 Histórico</button>
+            <button class="tab" data-tab="interes">💰 Interés</button>
+        </div>
+
+        <!-- Paneles -->
+        <section class="panel active" id="panelGastos"><div class="gastos-lista" id="listaGastos"></div></section>
+        <section class="panel" id="panelCuotas"><div class="cuotas-grid" id="gridCuotas"></div></section>
+        <section class="panel" id="panelHistorico">
+            <div class="historico-lista" id="listaHistorico"></div>
+            <div id="graficoHistorico" class="grafico-barras"></div>
+        </section>
+        <section class="panel" id="panelInteres">
+            <div class="tasas-grid">
+                <div class="tasa-card"><span class="tasa-label">Rotativo</span><span class="tasa-valor">2,79%</span><span class="tasa-cae">CAE: 39,13%</span></div>
+                <div class="tasa-card"><span class="tasa-label">Cuotas</span><span class="tasa-valor">4,27%</span><span class="tasa-cae">CAE: 42,00%</span></div>
+                <div class="tasa-card"><span class="tasa-label">Avances</span><span class="tasa-valor">4,27%</span><span class="tasa-cae">CAE: 46,85%</span></div>
+            </div>
+            <div class="simulador">
+                <h4 style="color:var(--accent);margin-bottom:8px;">🧮 Simular interés</h4>
+                <div class="simulador-inputs">
+                    <div class="form-group"><label>Monto</label><input type="number" id="simMonto" value="475880"></div>
+                    <div class="form-group"><label>Cuotas</label><input type="number" id="simCuotas" value="12" min="1" max="36"></div>
+                    <button id="btnSimular" class="btn-primary btn-sm">Calcular</button>
+                </div>
+                <div id="resultadoSimulacion" class="resultado-sim"></div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal Compra -->
+    <div id="modalCompra" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>🛒 Nueva Compra</h2>
+            <form id="formCompra">
+                <div class="form-group"><label>Fecha</label><input type="date" id="fechaCompra" required></div>
+                <div class="form-group"><label>Comercio</label><input type="text" id="descripcion" placeholder="Ej: Falabella.com" required></div>
+                <div class="form-group"><label>Monto Total</label><input type="number" id="montoTotal" placeholder="0" required></div>
+                <div class="form-group"><label>Cuotas</label><input type="number" id="cuotas" value="1" min="1" max="36" required></div>
+                <div class="form-group"><label>¿Para quién?</label><select id="persona"><option value="Titular">Titular</option><option value="Persona 1">Persona 1</option><option value="Persona 2">Persona 2</option><option value="Persona 3">Persona 3</option></select></div>
+                <div class="form-group"><label>Facturación</label><select id="tipoFacturacion"><option value="antes">Este período</option><option value="despues">Próximo período</option></select></div>
+                <button type="submit" class="btn-primary">💾 Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Cuotas -->
+    <div id="modalCuotas" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>📅 Detalle Cuotas</h2>
+            <div id="detalleCuotas"></div>
+        </div>
+    </div>
+
+    <!-- Modal Pago -->
+    <div id="modalPago" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>💵 Registrar Pago</h2>
+            <form id="formPago">
+                <div class="form-group"><label>Monto</label><input type="number" id="montoPago" required></div>
+                <div class="form-group"><label>Fecha</label><input type="date" id="fechaPagoInput" required></div>
+                <div class="form-group"><label>Tipo</label><select id="tipoPago"><option value="total">Total</option><option value="minimo">Mínimo</option><option value="personalizado">Personalizado</option></select></div>
+                <button type="submit" class="btn-primary">✅ Registrar</button>
+            </form>
+        </div>
+    </div>
+
+    <button class="btn-pago-flotante" title="Registrar pago">💵</button>
+
+    <script>
+        // ============ CONFIGURACIÓN ============
+        // ⚠️ CAMBIA ESTA URL POR LA DE TU GOOGLE APPS SCRIPT
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxaiBcHJ2M_51Xiqru-iFnPNgImLL6tlOdV7DgZ7wXFA7C7aaBxKzY7QKaMUZllmpKddw/exec';
+        const USAR_SINCRONIZACION = GOOGLE_SCRIPT_URL !== 'https://script.google.com/macros/s/AKfycbxaiBcHJ2M_51Xiqru-iFnPNgImLL6tlOdV7DgZ7wXFA7C7aaBxKzY7QKaMUZllmpKddw/exec';
+        
+        const CONFIG = {
+            fechaFacturacion: new Date(2026, 3, 19),
+            fechaPago: new Date(2026, 4, 5),
+            cupoCompras: 3540000,
+            tasas: { rotativo: 0.0279, cuotas: 0.0427, avances: 0.0427 },
+        };
+        
+        const STORAGE_KEY = 'gestor_tc_v3';
+        
+        // ============ DATOS ============
+        let datos = datosIniciales();
+        
+        function datosIniciales() {
+            return {
+                gastos: [
+                    { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                    { id: 2, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 22990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                    { id: 3, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: 'Persona 1', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                    { id: 4, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: 'Persona 2', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                    { id: 5, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                    { id: 6, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                    { id: 7, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                ],
+                historicoFacturaciones: [
+                    { periodo: '20/02 - 19/03/2026', monto: 371440, pagado: 371440, fechaPago: '2026-04-04' },
+                    { periodo: '20/03 - 19/04/2026', monto: 475880, pagado: 0, fechaPago: null },
+                ],
+                tema: 'dark',
+                ultimaSync: null,
+            };
+        }
+        
+        // ============ SINCRONIZACIÓN ============
+        async function cargarDesdeNube() {
+            if (!USAR_SINCRONIZACION) return null;
+            try {
+                const resp = await fetch(GOOGLE_SCRIPT_URL);
+                if (!resp.ok) throw new Error('Error de red');
+                const data = await resp.json();
+                if (data && data.gastos) {
+                    updateSyncBadge('online', '🟢 Sincronizado');
+                    return data;
+                }
+                return null;
+            } catch (e) {
+                updateSyncBadge('error', '🔴 Sin conexión - Usando datos locales');
+                return null;
+            }
+        }
