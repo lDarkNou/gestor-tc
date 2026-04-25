@@ -263,14 +263,16 @@
     <script>
         // ============ CONFIGURACIÓN ============
         // ============ CONFIGURACIÓN FIREBASE ============
-        const firebaseConfig = {
+       const firebaseConfig = {
+        
           apiKey: "AIzaSyA5F2BbLININmowaIZs_EIyGlKIMM5USe0",
-          authDomain: "gestor-tc.firebaseapp.com",
-          projectId: "gestor-tc.firebaseapp.com",
+          authDomain: "gestor-tc.firebaseapp.com",        
+          projectId: "gestor-tc",
           storageBucket: "gestor-tc.firebasestorage.app",
-          messagingSenderId: "1956769523283",
+          messagingSenderId: "956769523283",
           appId: "1:956769523283:web:3ba930eb79c88f69c898a6"
-        };
+      };
+
         
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
