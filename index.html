@@ -121,6 +121,9 @@
         @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
         @media (max-width: 380px) { .montos-grid { grid-template-columns: 1fr 1fr; } .cuotas-grid { grid-template-columns: 1fr 1fr; } }
     </style>
+        <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -258,9 +261,19 @@
 
     <script>
         // ============ CONFIGURACIÓN ============
-        // ⚠️ PEGA AQUÍ LA URL DE TU GOOGLE APPS SCRIPT
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw84BDnoMaAejkRo-GLSufGu8TZXt672IdkSZS6lbT1FldlgQCNfdVrJ3GCSUmoRiXH/exec';
-
+        // ============ CONFIGURACIÓN FIREBASE ============
+        const firebaseConfig = {
+          apiKey: "AIzaSyA5F2bBLININmowaIZs_EIyGLKIMM5USe0",
+          authDomain: "gestor-tc.firebaseapp.com",
+          projectId: "gestor-tc.firebaseapp.com",
+          storageBucket: "gestor-tc.firebasestorage.app",
+          messagingSenderId: "1956769523283",
+          appId: "1:956769523283:web:3ba930eb79c88f69c898a6"
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
         const CONFIG = {
             fechaFacturacion: new Date(2026, 3, 19),
             fechaPago: new Date(2026, 4, 5),
@@ -389,33 +402,41 @@
         }
 
         // ============ SINCRONIZACIÓN ============
+     // ============ SINCRONIZACIÓN FIREBASE ============
         async function guardarEnNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                const iframe = document.createElement('iframe');
-                iframe.name = 'hf_' + Date.now();
-                iframe.style.display = 'none';
-                document.body.appendChild(iframe);
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = GOOGLE_SCRIPT_URL;
-                form.target = iframe.name;
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'data';
-                input.value = JSON.stringify(datos);
-                form.appendChild(input);
-                document.body.appendChild(form);
-                form.submit();
-                setTimeout(() => { document.body.removeChild(form); document.body.removeChild(iframe); }, 3000);
-                badge.textContent = '🟢 Guardado en nube';
+                await db.collection('datos').doc('principal').set(datos);
+                badge.textContent = '🟢 Sincronizado';
                 badge.className = 'sync-badge';
             } catch(e) {
-                badge.textContent = '💾 Datos locales';
+                console.error('Error Firebase:', e);
+                badge.textContent = '💾 Local';
                 badge.className = 'sync-badge local';
             }
         }
-
+        
+        async function cargarDeNube() {
+            const badge = document.getElementById('syncBadge');
+            try {
+                const doc = await db.collection('datos').doc('principal').get();
+                if (doc.exists && doc.data().gastos && doc.data().gastos.length > 0) {
+                    datos = doc.data();
+                    badge.textContent = '🟢 Sincronizado';
+                    badge.className = 'sync-badge';
+                    return true;
+                }
+                badge.textContent = '💾 Local (nube vacía)';
+                badge.className = 'sync-badge local';
+                return false;
+            } catch(e) {
+                console.error('Error Firebase:', e);
+                badge.textContent = '🟡 Sin conexión';
+                badge.className = 'sync-badge local';
+                return false;
+            }
+        }
+        
         function guardarYSinc() {
             guardarDatosLocal();
             guardarEnNube();
@@ -736,11 +757,14 @@
         window.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); });
 
         // ============ INICIO ============
-        (function() {
+        (async function() {
             if (datos.tema === 'light') document.body.classList.add('light');
             actualizarSelectsPersonas();
+            const cargado = await cargarDeNube();
+            if (!cargado) {
+                await guardarEnNube(); // Sube datos locales a la nube
+            }
             renderizarTodo();
-            guardarEnNube();
             setInterval(alertaVencimiento, 3600000);
         })();
     </script>
