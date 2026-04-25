@@ -246,6 +246,7 @@
                     <button id="btnExportar" class="btn-icon" title="Exportar JSON">📥</button>
                     <button id="btnImportar" class="btn-icon" title="Importar JSON">📤</button>
                     <button id="btnTema" class="btn-icon" title="Cambiar tema">🌓</button>
+                    <button id="btnTema" class="btn-icon" title="Cambiar tema">🌓</button>
                 </div>
             </div>
             <span id="syncBadge" class="sync-badge">💾 Datos locales</span>
@@ -309,7 +310,22 @@
             </div>
         </section>
     </div>
-
+    <!-- MODAL PERSONAS -->
+    <div id="modalPersonas" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>👥 Administrar Personas</h2>
+            <div id="listaPersonas"></div>
+            <hr style="border-color:var(--border);margin:12px 0">
+            <div class="form-group">
+                <label>Nueva persona:</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="nuevaPersona" placeholder="Nombre" style="flex:1;">
+                    <button id="btnAgregarPersona" class="btn-primary btn-sm" style="width:auto;">➕ Agregar</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- MODAL COMPRA -->
     <div id="modalCompra" class="modal">
         <div class="modal-content">
@@ -612,15 +628,17 @@
             if (!g) return;
             const cm = cuotaMensual(g);
             const pagSet = new Set(g.cuotasPagadas || []);
-            let h = `<p><strong>${g.descripcion}</strong> - ${g.persona}</p><p>$${g.montoTotal.toLocaleString('es-CL')} en ${g.cuotas} cuotas de $${cm.toLocaleString('es-CL')}</p><hr style="border-color:var(--border);margin:10px 0">`;
-            for (let i = 0; i < g.cuotas; i++) {
-                const fc = new Date(g.fecha + 'T00:00:00');
-                fc.setMonth(fc.getMonth() + i);
-                h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cm.toLocaleString('es-CL')}</span></div>`;
-            }
-            h += `<hr style="border-color:var(--border);margin:10px 0"><button onclick="todasCuotas(${g.id})" class="btn-primary btn-sm">✅ Todas</button> <button onclick="ningunaCuota(${g.id})" class="btn-primary btn-sm" style="background:var(--accent2)">❌ Ninguna</button>`;
-            document.getElementById('detalleCuotas').innerHTML = h;
-            document.getElementById('modalCuotas').style.display = 'block';
+            const personas = obtenerPersonas();
+            const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
+            let h = `<p><strong>${g.descripcion}</strong></p>
+    <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: 
+        <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">
+            ${opcionesPersonas}
+        </select>
+    </p>
+    <p>$${g.montoTotal.toLocaleString('es-CL')} en ${g.cuotas} cuotas de $${cm.toLocaleString('es-CL')}</p>
+    <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
+    <hr style="border-color:var(--border);margin:10px 0">`;
         }
 
         function toggleCuota(gid, idx, chk) {
@@ -706,6 +724,45 @@
             setTimeout(() => document.body.removeChild(t), 2500);
         }
 
+        // ============ GESTIÓN DE PERSONAS ============
+function obtenerPersonas() {
+    const guardado = localStorage.getItem('gestor_tc_personas');
+    if (guardado) {
+        try { return JSON.parse(guardado); } catch(e) {}
+    }
+    return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
+}
+
+function guardarPersonas(personas) {
+    localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
+}
+
+function cambiarPersona(gastoId, nuevaPersona) {
+    const g = datos.gastos.find(x => x.id === gastoId);
+    if (g) {
+        g.persona = nuevaPersona;
+        guardarYSinc();
+        verCuotas(gastoId);
+        mostrarToast('✅ Persona actualizada');
+    }
+}
+
+function eliminarCompra(gastoId) {
+    if (confirm('¿Eliminar esta compra? Esta acción no se puede deshacer.')) {
+        datos.gastos = datos.gastos.filter(g => g.id !== gastoId);
+        guardarYSinc();
+        document.getElementById('modalCuotas').style.display = 'none';
+        mostrarToast('🗑️ Compra eliminada');
+    }
+}
+
+function mostrarToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => document.body.removeChild(t), 2500);
+}
         // ============ EVENTOS ============
         document.getElementById('btnNuevaCompra').addEventListener('click', () => {
             document.getElementById('modalCompra').style.display = 'block';
@@ -773,7 +830,24 @@
         document.getElementById('btnExportar').addEventListener('click', exportarJSON);
         document.getElementById('btnImportar').addEventListener('click', () => document.getElementById('inputImportar').click());
         document.getElementById('inputImportar').addEventListener('change', importarJSON);
+                // Modal Personas
+        document.getElementById('btnPersonas').addEventListener('click', () => {
+            renderizarPersonas();
+            document.getElementById('modalPersonas').style.display = 'block';
+        });
 
+        document.getElementById('btnAgregarPersona').addEventListener('click', () => {
+            const nombre = document.getElementById('nuevaPersona').value.trim();
+            if (!nombre) { mostrarToast('⚠️ Ingresa un nombre'); return; }
+            const personas = obtenerPersonas();
+            if (personas.includes(nombre)) { mostrarToast('⚠️ Ya existe esa persona'); return; }
+            personas.push(nombre);
+            guardarPersonas(personas);
+            document.getElementById('nuevaPersona').value = '';
+            renderizarPersonas();
+            actualizarSelectsPersonas();
+            mostrarToast('✅ Persona agregada');
+        });
         document.getElementById('btnTema').addEventListener('click', () => {
             document.body.classList.toggle('light');
             datos.tema = document.body.classList.contains('light') ? 'light' : 'dark';
@@ -806,6 +880,7 @@
         // ============ INICIO ============
         (function() {
             if (datos.tema === 'light') document.body.classList.add('light');
+            actualizarSelectsPersonas(); // ← Agrega esta línea
             renderizarTodo();
             guardarEnNube();
             setInterval(alertaVencimiento, 3600000);
