@@ -331,31 +331,34 @@
         }
 
         // ============ GESTIÓN DE PERSONAS ============
-        async function obtenerPersonas() {
-            // Intentar cargar de Firebase primero
+       async function obtenerPersonas() {
             try {
                 const doc = await db.collection('datos').doc('personas').get();
-                if (doc.exists && doc.data().lista) {
-                    localStorage.setItem('gestor_tc_personas', JSON.stringify(doc.data().lista));
-                    return doc.data().lista;
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data && data.lista && Array.isArray(data.lista) && data.lista.length > 0) {
+                        localStorage.setItem('gestor_tc_personas', JSON.stringify(data.lista));
+                        return data.lista;
+                    }
                 }
             } catch(e) {}
             
-            // Si no, cargar de localStorage
             const guardado = localStorage.getItem('gestor_tc_personas');
             if (guardado) {
-                try { return JSON.parse(guardado); } catch(e) {}
+                try {
+                    const parsed = JSON.parse(guardado);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                } catch(e) {}
             }
             return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
-        }
-
-        function guardarPersonas(personas) {
-            localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
-            // También guardar en Firebase
-            try {
-                db.collection('datos').doc('personas').set({ lista: personas });
-            } catch(e) {}
-        }
+    }
+       function guardarPersonas(personas) {
+    if (!Array.isArray(personas)) return;
+    localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
+    try {
+        db.collection('datos').doc('personas').set({ lista: personas });
+    } catch(e) {}
+}
 
         async function actualizarSelectsPersonas() {
             const personas = await obtenerPersonas();
