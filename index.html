@@ -357,8 +357,8 @@
             } catch(e) {}
         }
 
-        function actualizarSelectsPersonas() {
-            const personas = obtenerPersonas();
+        async function actualizarSelectsPersonas() {
+            const personas = await obtenerPersonas();
             const opciones = personas.map(p => `<option value="${p}">${p}</option>`).join('');
             const fp = document.getElementById('filtroPersona');
             if (fp) fp.innerHTML = '<option value="todos">Todos</option>' + opciones;
@@ -366,8 +366,8 @@
             if (p) p.innerHTML = opciones;
         }
 
-        function renderizarPersonas() {
-            const personas = obtenerPersonas();
+       async function renderizarPersonas() {
+            const personas = await obtenerPersonas();
             const cont = document.getElementById('listaPersonas');
             if (!cont) return;
             cont.innerHTML = personas.map((p, i) => `
@@ -378,10 +378,11 @@
             `).join('');
             document.querySelectorAll('.input-persona').forEach(inp => {
                 inp.addEventListener('change', function() {
-                    const personas = obtenerPersonas();
-                    personas[this.dataset.index] = this.value;
-                    guardarPersonas(personas);
-                    actualizarSelectsPersonas();
+                    obtenerPersonas().then(personas => {
+                        personas[this.dataset.index] = this.value;
+                        guardarPersonas(personas);
+                        actualizarSelectsPersonas();
+                    });
                 });
             });
         }
@@ -587,12 +588,12 @@
             g.innerHTML = datos.historicoFacturaciones.map(h => `<div class="barra-item"><div class="barra facturado" style="height:${Math.max(4,(h.monto/max)*100)}px"></div><div class="barra pagado" style="height:${Math.max(4,(h.pagado/max)*100)}px"></div><div class="barra-label">${h.periodo.split(' - ')[1]?.split('/')[0]||''}/${h.periodo.split('/')[2]?.slice(2,4)||''}</div><div class="barra-valor">$${Math.round(h.monto/1000)}k</div></div>`).join('');
         }
 
-        function verCuotas(id) {
+        async function verCuotas(id) {
             const g = datos.gastos.find(x => x.id === id);
             if (!g) return;
             const cm = cuotaMensual(g);
             const pagSet = new Set(g.cuotasPagadas || []);
-            const personas = obtenerPersonas();
+            const personas = await obtenerPersonas();
             const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
             let h = `<p><strong>${g.descripcion}</strong></p>
                 <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
@@ -787,14 +788,13 @@
         (async function() {
             if (datos.tema === 'light') document.body.classList.add('light');
             await cargarDeNube();
-            await obtenerPersonas(); // ← Agrega esta línea
-            actualizarSelectsPersonas();
+            await actualizarSelectsPersonas();
             if (datos.gastos.length === 0) {
                 await guardarEnNube();
             }
             renderizarTodo();
             setInterval(alertaVencimiento, 3600000);
-        })();
+    })();
     </script>
 </body>
 </html>
