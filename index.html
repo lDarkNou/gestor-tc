@@ -243,12 +243,12 @@
             <div class="header-top">
                 <h1>💳 Gestor TC</h1>
                 <div class="header-actions">
-                    <button id="btnExportar" class="btn-icon" title="Exportar Excel">📥</button>
+                    <button id="btnExportar" class="btn-icon" title="Exportar JSON">📥</button>
+                    <button id="btnImportar" class="btn-icon" title="Importar JSON">📤</button>
                     <button id="btnTema" class="btn-icon" title="Cambiar tema">🌓</button>
-                    <button id="btnSync" class="btn-icon" title="Sincronizar">🔄</button>
                 </div>
             </div>
-            <span id="syncBadge" class="sync-badge">🔄 Conectando...</span>
+            <span id="syncBadge" class="sync-badge">💾 Datos locales</span>
             <p class="subtitle">ALONSO ANTONIO VILLALOBOS TORRES</p>
             <p class="subtitle-small">Cupón: 19.460.031.03 | Contrato: ****2918</p>
             <button id="btnNuevaCompra" class="btn-primary">+ Nueva Compra</button>
@@ -310,7 +310,7 @@
         </section>
     </div>
 
-    <!-- MODAL NUEVA COMPRA -->
+    <!-- MODAL COMPRA -->
     <div id="modalCompra" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
@@ -352,86 +352,113 @@
 
     <button class="btn-pago-flotante" title="Registrar pago">💵</button>
 
+    <input type="file" id="inputImportar" accept=".json" style="display:none;">
+
     <script>
         // ============ CONFIGURACIÓN ============
-const SHEET_ID = '1LkrTZ1r5YlgTT6e_FNtIhuygRRBcJienyrEFBMwZGtw';
-const API_KEY = 'AIzaSyCnHuUS1G7Odxc254_Ddp6CYmLD48rdjQ0';
-const SHEET_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/A2?key=${API_KEY}`;
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw84BDnoMaAejkRo-GLSuFGu8TZXt672IdkSZ56IbT1FldlqGCNfdvRJ3GCSUmoR1XH/exec';
-const USAR_SINCRONIZACION = true;
+        // ⚠️ PEGA AQUÍ LA URL DE TU GOOGLE APPS SCRIPT
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw84BDnoMaAejkRo-GLSuFGu8TZXt672IdkSZ56IbT1FldlqGCNfdvRJ3GCSUmoR1XH/exec';
 
-// ============ SINCRONIZACIÓN ============
-const GOOGLE_SCRIPT_URL = 'TU_URL_DE_APPS_SCRIPT/exec';
-const USAR_SINCRONIZACION = true;
+        const CONFIG = {
+            fechaFacturacion: new Date(2026, 3, 19),
+            fechaPago: new Date(2026, 4, 5),
+            cupoCompras: 3540000,
+            tasas: { rotativo: 0.0279, cuotas: 0.0427, avances: 0.0427 },
+        };
 
-async function guardarEnNube() {
-    if (!USAR_SINCRONIZACION) return;
-    try {
-        const iframe = document.createElement('iframe');
-        iframe.name = 'hidden_frame_' + Date.now();
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = GOOGLE_SCRIPT_URL;
-        form.target = iframe.name;
-        
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'data';
-        input.value = JSON.stringify(datos);
-        
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-        
-        setTimeout(() => {
-            document.body.removeChild(form);
-            document.body.removeChild(iframe);
-        }, 3000);
-        
-        document.getElementById('syncBadge').textContent = '🟢 Guardado en nube';
-        document.getElementById('syncBadge').className = 'sync-badge';
-    } catch (e) {
-        console.error('Error guardando:', e);
-    }
-}
+        // ============ DATOS INICIALES ============
+        const DATOS_INICIALES = {
+            gastos: [
+                { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 2, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: 'Persona 1', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 3, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: 'Persona 2', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 4, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 5, fecha: '2026-01-09', descripcion: 'Hip Lider Copiapó', montoTotal: 121228, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 6, fecha: '2026-02-21', descripcion: 'Unimarc Caldera', montoTotal: 106250, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 7, fecha: '2026-02-21', descripcion: 'Corralero Plaza', montoTotal: 32079, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 8, fecha: '2026-03-19', descripcion: 'DI*Google Youtube', montoTotal: 790, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 9, fecha: '2026-03-21', descripcion: 'Unimarc Caldera I', montoTotal: 78074, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 10, fecha: '2026-03-23', descripcion: 'DI*Google Youtube', montoTotal: 5500, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 11, fecha: '2026-03-28', descripcion: 'Mp *Mercado Libre', montoTotal: 71800, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 12, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 27180, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 13, fecha: '2026-03-31', descripcion: 'Ebenezer Ltda', montoTotal: 40000, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 14, fecha: '2026-04-02', descripcion: 'Hiper Copiapó', montoTotal: 143424, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 15, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 16, fecha: '2026-04-12', descripcion: 'Copiapó 3', montoTotal: 23980, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 17, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 18, fecha: '2026-04-17', descripcion: 'Seguro Desgravamen', montoTotal: 3116, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 19, fecha: '2026-04-17', descripcion: 'Seguro Cesantía', montoTotal: 4115, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 20, fecha: '2026-04-19', descripcion: 'Servicio Administración', montoTotal: 13990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 21, fecha: '2026-04-19', descripcion: 'Impuesto 0,8% anual', montoTotal: 4284, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+            ],
+            historicoFacturaciones: [
+                { periodo: '20/02 - 19/03/2026', monto: 371440, pagado: 371440, fechaPago: '2026-04-04' },
+                { periodo: '20/03 - 19/04/2026', monto: 475880, pagado: 0, fechaPago: null },
+            ],
+            tema: 'dark',
+        };
 
-async function guardarEnNube() {
-    try {
-        // Guardar vía formulario POST (Apps Script - sin CORS)
-        const iframe = document.createElement('iframe');
-        iframe.name = 'hidden_frame_' + Date.now();
-        iframe.style.display = 'none';
-        document.body.appendChild(iframe);
-        
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = APPS_SCRIPT_URL;
-        form.target = iframe.name;
-        form.style.display = 'none';
-        
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'data';
-        input.value = JSON.stringify(datos);
-        
-        form.appendChild(input);
-        document.body.appendChild(form);
-        form.submit();
-        
-        setTimeout(() => {
-            document.body.removeChild(form);
-            document.body.removeChild(iframe);
-        }, 3000);
-        
-        document.getElementById('syncBadge').textContent = '🟢 Sincronizado';
-        document.getElementById('syncBadge').className = 'sync-badge';
-    } catch (e) {
-        console.error('Error guardando:', e);
-    }
-}
+        // Cargar datos desde localStorage o usar iniciales
+        let datos = cargarDatosLocal();
+
+        function cargarDatosLocal() {
+            const guardado = localStorage.getItem('gestor_tc_v3');
+            if (guardado) {
+                try {
+                    const parsed = JSON.parse(guardado);
+                    if (parsed && parsed.gastos && parsed.gastos.length > 0) {
+                        return parsed;
+                    }
+                } catch(e) {}
+            }
+            return JSON.parse(JSON.stringify(DATOS_INICIALES));
+        }
+
+        function guardarDatosLocal() {
+            try { localStorage.setItem('gestor_tc_v3', JSON.stringify(datos)); } catch(e) {}
+        }
+
+        // ============ SINCRONIZACIÓN CON GOOGLE SHEETS ============
+        async function guardarEnNube() {
+            const badge = document.getElementById('syncBadge');
+            try {
+                const iframe = document.createElement('iframe');
+                iframe.name = 'hidden_frame_' + Date.now();
+                iframe.style.display = 'none';
+                document.body.appendChild(iframe);
+                
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = GOOGLE_SCRIPT_URL;
+                form.target = iframe.name;
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'data';
+                input.value = JSON.stringify(datos);
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+                
+                setTimeout(() => {
+                    document.body.removeChild(form);
+                    document.body.removeChild(iframe);
+                }, 3000);
+                
+                badge.textContent = '🟢 Guardado en nube';
+                badge.className = 'sync-badge';
+            } catch (e) {
+                badge.textContent = '💾 Datos locales';
+                badge.className = 'sync-badge local';
+            }
+        }
+
+        function guardarYSinc() {
+            guardarDatosLocal();
+            guardarEnNube();
+            renderizarTodo();
+        }
 
         // ============ FUNCIONES ============
         function cuotaMensual(g) { return Math.round(g.montoTotal / g.cuotas); }
@@ -635,18 +662,48 @@ async function guardarEnNube() {
             document.getElementById('modalCuotas').style.display = 'block';
         }
 
-        function guardarYSinc() {
-            guardarDatosLocal();
-            guardarEnNube();
-            renderizarTodo();
-        }
-
-        function guardarDatosLocal() {
-            try { localStorage.setItem('gestor_tc_v3', JSON.stringify(datos)); } catch(e) {}
-        }
-
         function formatoFecha(f) {
             return new Date(f + 'T00:00:00').toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric' });
+        }
+
+        // ============ EXPORTAR / IMPORTAR ============
+        function exportarJSON() {
+            const blob = new Blob([JSON.stringify(datos, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'gestor-tc-respaldo-' + new Date().toISOString().slice(0,10) + '.json';
+            a.click();
+            mostrarToast('📥 Datos exportados');
+        }
+
+        function importarJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const importado = JSON.parse(ev.target.result);
+                    if (importado && importado.gastos) {
+                        datos = importado;
+                        guardarYSinc();
+                        mostrarToast('📤 Datos importados correctamente');
+                    } else {
+                        mostrarToast('❌ Archivo inválido');
+                    }
+                } catch(err) {
+                    mostrarToast('❌ Error al leer el archivo');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        function mostrarToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => document.body.removeChild(t), 2500);
         }
 
         // ============ EVENTOS ============
@@ -713,26 +770,14 @@ async function guardarEnNube() {
             });
         });
 
-        document.getElementById('btnExportar').addEventListener('click', () => {
-            let csv = 'Fecha,Descripcion,Persona,Monto,Cuotas,Cuota Mensual,Pagadas,Pendientes\n';
-            datos.gastos.forEach(g => {
-                csv += `${g.fecha},"${g.descripcion}",${g.persona},${g.montoTotal},${g.cuotas},${cuotaMensual(g)},${g.cuotasPagadas?g.cuotasPagadas.length:0},${cuotasRestantes(g)}\n`;
-            });
-            const b = new Blob([csv], {type:'text/csv'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(b);
-            a.download = 'gastos_tc.csv';
-            a.click();
-        });
+        document.getElementById('btnExportar').addEventListener('click', exportarJSON);
+        document.getElementById('btnImportar').addEventListener('click', () => document.getElementById('inputImportar').click());
+        document.getElementById('inputImportar').addEventListener('change', importarJSON);
 
         document.getElementById('btnTema').addEventListener('click', () => {
             document.body.classList.toggle('light');
             datos.tema = document.body.classList.contains('light') ? 'light' : 'dark';
             guardarYSinc();
-        });
-
-        document.getElementById('btnSync').addEventListener('click', () => {
-            sincronizar().then(() => renderizarTodo());
         });
 
         document.getElementById('btnSimular').addEventListener('click', () => {
@@ -759,18 +804,10 @@ async function guardarEnNube() {
         window.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); });
 
         // ============ INICIO ============
-        (async function() {
-            if (USAR_SINCRONIZACION) {
-                await sincronizar();
-            }
-            if (datos.gastos.length === 0) {
-                datos = JSON.parse(JSON.stringify(DATOS_INICIALES));
-            }
-            if (document.body.classList.contains('light') !== (datos.tema === 'light')) {
-                if (datos.tema === 'light') document.body.classList.add('light');
-                else document.body.classList.remove('light');
-            }
+        (function() {
+            if (datos.tema === 'light') document.body.classList.add('light');
             renderizarTodo();
+            guardarEnNube();
             setInterval(alertaVencimiento, 3600000);
         })();
     </script>
