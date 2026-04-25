@@ -635,10 +635,9 @@
     const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
     let h = `<p><strong>${g.descripcion}</strong></p>
         <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
-        <p>$${g.montoTotal.toLocaleString('es-CL')} en 
+       <p>$${g.montoTotal.toLocaleString('es-CL')} en 
     <input type="number" id="editCuotas_${g.id}" value="${g.cuotas}" min="1" max="36"
-        style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:55px;font-size:0.8rem;"
-        onchange="cambiarCuotas(${g.id}, this.value)">
+        style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 6px;width:60px;font-size:0.85rem;display:inline-block;text-align:center;">
     cuotas de $${cm.toLocaleString('es-CL')}
 </p>
         <p style="font-size:0.8rem;margin:4px 0;">
