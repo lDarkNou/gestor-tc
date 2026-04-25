@@ -8,6 +8,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#1a1a2e">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <style>
         :root { --bg: #0f0f1a; --card-bg: #1a1a2e; --text: #e0e0e0; --accent: #00d4aa; --accent2: #ff6b6b; --warning: #ffa500; --border: #2a2a4a; --btn: #16213e; --shadow: 0 4px 20px rgba(0,0,0,0.3); --purple: #9b59b6; }
         body.light { --bg: #f0f2f5; --card-bg: #ffffff; --text: #1a1a2e; --border: #e0e0e0; --btn: #e8e8e8; --shadow: 0 2px 12px rgba(0,0,0,0.08); }
@@ -68,15 +70,6 @@
         .gasto-desc { font-weight: bold; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .gasto-detalle { font-size: 0.7rem; color: #888; margin-top: 2px; }
         .gasto-persona { font-size: 0.65rem; padding: 1px 7px; border-radius: 8px; background: var(--btn); display: inline-block; }
-        .persona-titular { border-left: 3px solid var(--accent); }
-        .persona-1 { border-left: 3px solid #3498db; }
-        .persona-2 { border-left: 3px solid #e74c3c; }
-        .persona-3 { border-left: 3px solid #f39c12; }
-        .gasto-monto-col { text-align: right; min-width: 90px; }
-        .gasto-monto { font-weight: bold; font-size: 0.9rem; }
-        .gasto-cuotas { font-size: 0.65rem; margin-top: 2px; }
-        .gasto-cuotas.pendiente { color: var(--warning); }
-        .gasto-cuotas.pagado { color: var(--accent); }
         .cuotas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
         .cuota-mes-card { background: var(--card-bg); border-radius: 12px; padding: 12px; text-align: center; border: 1px solid var(--border); cursor: pointer; transition: transform 0.2s; box-shadow: var(--shadow); }
         .cuota-mes-card:active { transform: scale(0.96); }
@@ -121,10 +114,6 @@
         @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
         @media (max-width: 380px) { .montos-grid { grid-template-columns: 1fr 1fr; } .cuotas-grid { grid-template-columns: 1fr 1fr; } }
     </style>
-        <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -148,8 +137,8 @@
 
         <section class="resumen-card">
             <div class="fechas-info">
-               <div class="fecha-item"><span class="label">📅 Facturación</span><span class="valor" id="periodoFacturacion">20/03/2026 - 19/04/2026</span></div>
-               <div class="fecha-item"><span class="label">⏰ Pago hasta</span><span class="valor" id="fechaLimitePago">05/05/2026</span></div>
+                <div class="fecha-item"><span class="label">📅 Facturación</span><span class="valor" id="periodoFacturacion">20/03/2026 - 19/04/2026</span></div>
+                <div class="fecha-item"><span class="label">⏰ Pago hasta</span><span class="valor" id="fechaLimitePago">05/05/2026</span></div>
             </div>
             <div class="montos-grid">
                 <div class="monto-item"><span class="label">Facturado</span><span class="valor facturado" id="montoFacturado">$0</span></div>
@@ -161,6 +150,12 @@
                 <div class="barra-progreso"><div class="progreso" id="barraProgreso" style="width:0%"></div></div>
                 <span class="porcentaje" id="porcentajeCupo">0% cupo utilizado</span>
             </div>
+        </section>
+
+        <!-- RESUMEN POR PERSONA -->
+        <section class="resumen-card" id="resumenPersonas">
+            <h3 style="color:var(--accent);margin-bottom:8px;font-size:0.9rem;">👥 Totales por persona - Período actual</h3>
+            <div id="totalesPersonas" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
         </section>
 
         <section class="filtros">
@@ -178,10 +173,7 @@
 
         <section class="panel active" id="panelGastos"><div class="gastos-lista" id="listaGastos"></div></section>
         <section class="panel" id="panelCuotas"><div class="cuotas-grid" id="gridCuotas"></div></section>
-        <section class="panel" id="panelHistorico">
-            <div class="historico-lista" id="listaHistorico"></div>
-            <div id="graficoHistorico" class="grafico-barras"></div>
-        </section>
+        <section class="panel" id="panelHistorico"><div class="historico-lista" id="listaHistorico"></div><div id="graficoHistorico" class="grafico-barras"></div></section>
         <section class="panel" id="panelInteres">
             <div class="tasas-grid">
                 <div class="tasa-card"><span class="tasa-label">Rotativo</span><span class="tasa-valor">2,79% mensual</span><span class="tasa-cae">CAE: 39,13%</span></div>
@@ -201,88 +193,48 @@
     </div>
 
     <!-- MODAL PERSONAS -->
-    <div id="modalPersonas" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>👥 Administrar Personas</h2>
-            <div id="listaPersonas"></div>
-            <hr style="border-color:var(--border);margin:12px 0">
-            <div class="form-group">
-                <label>Nueva persona:</label>
-                <div style="display:flex;gap:8px;">
-                    <input type="text" id="nuevaPersona" placeholder="Nombre" style="flex:1;">
-                    <button id="btnAgregarPersona" class="btn-primary btn-sm" style="width:auto;">➕ Agregar</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div id="modalPersonas" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>👥 Administrar Personas</h2><div id="listaPersonas"></div><hr style="border-color:var(--border);margin:12px 0"><div class="form-group"><label>Nueva persona:</label><div style="display:flex;gap:8px;"><input type="text" id="nuevaPersona" placeholder="Nombre" style="flex:1;"><button id="btnAgregarPersona" class="btn-primary btn-sm" style="width:auto;">➕ Agregar</button></div></div></div></div>
 
     <!-- MODAL COMPRA -->
-       <!-- MODAL COMPRA -->
-    <div id="modalCompra" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>🛒 Nueva Compra</h2>
-            <form id="formCompra">
-                <div class="form-group"><label>Fecha</label><input type="date" id="fechaCompra" required></div>
-                <div class="form-group"><label>Comercio</label><input type="text" id="descripcion" placeholder="Ej: Falabella.com" required></div>
-                <div class="form-group"><label>Monto Total $</label><input type="number" id="montoTotal" placeholder="0" required></div>
-                <div class="form-group"><label>Cuotas</label><input type="number" id="cuotas" value="1" min="1" max="36" required></div>
-                <div class="form-group">
-                    <label>Valor de cada cuota $ (opcional, solo si tiene interés)</label>
-                    <input type="number" id="valorCuota" placeholder="Se calcula automáticamente">
-                    <small style="color:#888;font-size:0.7rem;">Dejar vacío si es sin interés</small>
-                </div>
-                <div class="form-group"><label>¿Para quién?</label><select id="persona"></select></div>
-                <div class="form-group"><label>Facturación</label><select id="tipoFacturacion"><option value="antes">Este período</option><option value="despues">Próximo período</option></select></div>
-                <button type="submit" class="btn-primary">💾 Guardar Compra</button>
-            </form>
-        </div>
-    </div>
+    <div id="modalCompra" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>🛒 Nueva Compra</h2><form id="formCompra">
+        <div class="form-group"><label>Fecha</label><input type="date" id="fechaCompra" required></div>
+        <div class="form-group"><label>Comercio</label><input type="text" id="descripcion" placeholder="Ej: Falabella.com" required></div>
+        <div class="form-group"><label>Monto Total $</label><input type="number" id="montoTotal" placeholder="0" required></div>
+        <div class="form-group"><label>Cuotas</label><input type="number" id="cuotas" value="1" min="1" max="36" required></div>
+        <div class="form-group"><label>Primer cargo (fecha primer cobro)</label><input type="month" id="primerCargoMes"><small style="color:#888;font-size:0.7rem;">Mes/año del primer cobro real. Ej: dic-2025</small></div>
+        <div class="form-group"><label>Valor de cada cuota $ (opcional, solo si tiene interés)</label><input type="number" id="valorCuota" placeholder="Se calcula automáticamente"><small style="color:#888;font-size:0.7rem;">Dejar vacío si es sin interés</small></div>
+        <div class="form-group"><label>¿Para quién?</label><select id="persona"></select></div>
+        <div class="form-group"><label>Facturación</label><select id="tipoFacturacion"><option value="antes">Este período</option><option value="despues">Próximo período</option></select></div>
+        <button type="submit" class="btn-primary">💾 Guardar Compra</button>
+    </form></div></div>
 
     <!-- MODAL CUOTAS -->
-    <div id="modalCuotas" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>📅 Detalle de Cuotas</h2>
-            <div id="detalleCuotas"></div>
-        </div>
-    </div>
+    <div id="modalCuotas" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>📅 Detalle de Cuotas</h2><div id="detalleCuotas"></div></div></div>
 
     <!-- MODAL PAGO -->
-    <div id="modalPago" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>💵 Registrar Pago</h2>
-            <form id="formPago">
-                <div class="form-group"><label>Monto Pagado</label><input type="number" id="montoPago" required></div>
-                <div class="form-group"><label>Fecha de Pago</label><input type="date" id="fechaPagoInput" required></div>
-                <div class="form-group"><label>Tipo</label><select id="tipoPago"><option value="total">Total facturado</option><option value="minimo">Mínimo</option><option value="personalizado">Personalizado</option></select></div>
-                <button type="submit" class="btn-primary">✅ Registrar Pago</button>
-            </form>
-        </div>
-    </div>
+    <div id="modalPago" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>💵 Registrar Pago</h2><form id="formPago">
+        <div class="form-group"><label>Monto Pagado</label><input type="number" id="montoPago" required></div>
+        <div class="form-group"><label>Fecha de Pago</label><input type="date" id="fechaPagoInput" required></div>
+        <div class="form-group"><label>Tipo</label><select id="tipoPago"><option value="total">Total facturado</option><option value="minimo">Mínimo</option><option value="personalizado">Personalizado</option></select></div>
+        <button type="submit" class="btn-primary">✅ Registrar Pago</button>
+    </form></div></div>
 
     <button class="btn-pago-flotante" title="Registrar pago">💵</button>
     <input type="file" id="inputImportar" accept=".json" style="display:none;">
 
     <script>
-        // ============ CONFIGURACIÓN ============
         // ============ CONFIGURACIÓN FIREBASE ============
-       const firebaseConfig = {
-        
-          apiKey: "AIzaSyA5F2BbLININmowaIZs_EIyGlKIMM5USe0",
-          authDomain: "gestor-tc.firebaseapp.com",        
-          projectId: "gestor-tc",
-          storageBucket: "gestor-tc.firebasestorage.app",
-          messagingSenderId: "956769523283",
-          appId: "1:956769523283:web:3ba930eb79c88f69c898a6"
-      };
-
-        
+        const firebaseConfig = {
+            apiKey: "AIzaSyA5F2BbLININmowaIZs_EIyGLKIMM5USe0",
+            authDomain: "gestor-tc.firebaseapp.com",
+            projectId: "gestor-tc",
+            storageBucket: "gestor-tc.firebasestorage.app",
+            messagingSenderId: "956769523283",
+            appId: "1:956769523283:web:3ba930eb79c88f69c898a6"
+        };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        
+
         const CONFIG = {
             fechaFacturacion: new Date(2026, 3, 19),
             fechaPago: new Date(2026, 4, 5),
@@ -293,27 +245,27 @@
         // ============ DATOS INICIALES ============
         const DATOS_INICIALES = {
             gastos: [
-                { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 2, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: 'Persona 1', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 3, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: 'Persona 2', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 4, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 5, fecha: '2026-01-09', descripcion: 'Hip Lider Copiapó', montoTotal: 121228, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 6, fecha: '2026-02-21', descripcion: 'Unimarc Caldera', montoTotal: 106250, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 7, fecha: '2026-02-21', descripcion: 'Corralero Plaza', montoTotal: 32079, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 8, fecha: '2026-03-19', descripcion: 'DI*Google Youtube', montoTotal: 790, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 9, fecha: '2026-03-21', descripcion: 'Unimarc Caldera I', montoTotal: 78074, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 10, fecha: '2026-03-23', descripcion: 'DI*Google Youtube', montoTotal: 5500, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 11, fecha: '2026-03-28', descripcion: 'Mp *Mercado Libre', montoTotal: 71800, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 12, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 27180, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 13, fecha: '2026-03-31', descripcion: 'Ebenezer Ltda', montoTotal: 40000, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 14, fecha: '2026-04-02', descripcion: 'Hiper Copiapó', montoTotal: 143424, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 15, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 16, fecha: '2026-04-12', descripcion: 'Copiapó 3', montoTotal: 23980, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 17, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 18, fecha: '2026-04-17', descripcion: 'Seguro Desgravamen', montoTotal: 3116, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 19, fecha: '2026-04-17', descripcion: 'Seguro Cesantía', montoTotal: 4115, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 20, fecha: '2026-04-19', descripcion: 'Servicio Administración', montoTotal: 13990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
-                { id: 21, fecha: '2026-04-19', descripcion: 'Impuesto 0,8% anual', montoTotal: 4284, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [] },
+                { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2025-12', valorCuota: 24772 },
+                { id: 2, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: 'Persona 1', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2025-12', valorCuota: 12482 },
+                { id: 3, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: 'Persona 2', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-01', valorCuota: 40399 },
+                { id: 4, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-02', valorCuota: 16962 },
+                { id: 5, fecha: '2026-01-09', descripcion: 'Hip Lider Copiapó', montoTotal: 121228, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-03', valorCuota: 44120 },
+                { id: 6, fecha: '2026-02-21', descripcion: 'Unimarc Caldera', montoTotal: 106250, cuotas: 3, persona: 'Alonso', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-04', valorCuota: 35416 },
+                { id: 7, fecha: '2026-02-21', descripcion: 'Corralero Plaza', montoTotal: 32079, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-04', valorCuota: 11550 },
+                { id: 8, fecha: '2026-03-19', descripcion: 'DI*Google Youtube', montoTotal: 790, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 9, fecha: '2026-03-21', descripcion: 'Unimarc Caldera I', montoTotal: 78074, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 10, fecha: '2026-03-23', descripcion: 'DI*Google Youtube', montoTotal: 5500, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 11, fecha: '2026-03-28', descripcion: 'Mp *Mercado Libre', montoTotal: 71800, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 12, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 27180, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 13, fecha: '2026-03-31', descripcion: 'Ebenezer Ltda', montoTotal: 40000, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 14, fecha: '2026-04-02', descripcion: 'Hiper Copiapó', montoTotal: 143424, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05', valorCuota: 51207 },
+                { id: 15, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-06' },
+                { id: 16, fecha: '2026-04-12', descripcion: 'Copiapó 3', montoTotal: 23980, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 17, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 18, fecha: '2026-04-17', descripcion: 'Seguro Desgravamen', montoTotal: 3116, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 19, fecha: '2026-04-17', descripcion: 'Seguro Cesantía', montoTotal: 4115, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 20, fecha: '2026-04-19', descripcion: 'Servicio Administración', montoTotal: 13990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 21, fecha: '2026-04-19', descripcion: 'Impuesto 0,8% anual', montoTotal: 4284, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
             ],
             historicoFacturaciones: [
                 { periodo: '20/02 - 19/03/2026', monto: 371440, pagado: 371440, fechaPago: '2026-04-04' },
@@ -326,28 +278,24 @@
 
         function cargarDatosLocal() {
             const guardado = localStorage.getItem('gestor_tc_v3');
-            if (guardado) {
-                try { const p = JSON.parse(guardado); if (p && p.gastos && p.gastos.length > 0) return p; } catch(e) {}
-            }
+            if (guardado) { try { const p = JSON.parse(guardado); if (p && p.gastos && p.gastos.length > 0) return p; } catch(e) {} }
             return JSON.parse(JSON.stringify(DATOS_INICIALES));
         }
 
-        function guardarDatosLocal() {
-            try { localStorage.setItem('gestor_tc_v3', JSON.stringify(datos)); } catch(e) {}
-        }
+        function guardarDatosLocal() { try { localStorage.setItem('gestor_tc_v3', JSON.stringify(datos)); } catch(e) {} }
 
         // ============ GESTIÓN DE PERSONAS ============
-      function obtenerPersonas() {
-    // Siempre intentar cargar de localStorage primero (se actualiza al sincronizar)
-    const guardado = localStorage.getItem('gestor_tc_personas');
-    if (guardado) {
-        try {
-            const parsed = JSON.parse(guardado);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch(e) {}
-    }
-    return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
-}
+        function obtenerPersonas() {
+            const g = localStorage.getItem('gestor_tc_personas');
+            if (g) { try { return JSON.parse(g); } catch(e) {} }
+            return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3', 'Alonso'];
+        }
+
+        function guardarPersonas(personas) {
+            if (!Array.isArray(personas)) return;
+            localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
+            try { db.collection('datos').doc('principal').update({ personas: personas }); } catch(e) {}
+        }
 
         function actualizarSelectsPersonas() {
             const personas = obtenerPersonas();
@@ -357,16 +305,8 @@
             const p = document.getElementById('persona');
             if (p) p.innerHTML = opciones;
         }
-        function guardarPersonas(personas) {
-            if (!Array.isArray(personas)) return;
-            localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
-            // También guardar en Firebase
-            try {
-                db.collection('datos').doc('principal').update({ personas: personas });
-            } catch(e) {}
-        }
 
-       function renderizarPersonas() {
+        function renderizarPersonas() {
             const personas = obtenerPersonas();
             const cont = document.getElementById('listaPersonas');
             if (!cont) return;
@@ -374,8 +314,7 @@
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
                     <input type="text" value="${p}" data-index="${i}" class="input-persona" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:0.85rem;width:60%;">
                     <button onclick="eliminarPersona(${i})" class="btn-primary btn-sm" style="background:var(--accent2);width:auto;padding:6px 12px;">🗑️</button>
-                </div>
-            `).join('');
+                </div>`).join('');
             document.querySelectorAll('.input-persona').forEach(inp => {
                 inp.addEventListener('change', function() {
                     const personas = obtenerPersonas();
@@ -383,15 +322,15 @@
                     guardarPersonas(personas);
                     actualizarSelectsPersonas();
                 });
-                    });
-}
+            });
+        }
 
-       function eliminarPersona(index) {
+        function eliminarPersona(index) {
             const personas = obtenerPersonas();
             if (personas.length <= 1) { mostrarToast('⚠️ Debe haber al menos una persona'); return; }
             const eliminada = personas[index];
             personas.splice(index, 1);
-            guardarPersonas(personas);  // ← Esta línea debe estar
+            guardarPersonas(personas);
             datos.gastos.forEach(g => { if (g.persona === eliminada) g.persona = 'Titular'; });
             guardarYSinc();
             renderizarPersonas();
@@ -403,32 +342,27 @@
             if (g) { g.persona = nuevaPersona; guardarYSinc(); verCuotas(gastoId); }
         }
 
+        function cambiarValorCuota(gastoId, nuevoValor) {
+            const g = datos.gastos.find(x => x.id === gastoId);
+            if (g) { g.valorCuota = parseInt(nuevoValor) || 0; guardarYSinc(); verCuotas(gastoId); }
+        }
+
         function cambiarCuotas(gastoId, nuevasCuotas) {
             const g = datos.gastos.find(x => x.id === gastoId);
             if (!g) return;
             const nuevas = parseInt(nuevasCuotas);
             if (isNaN(nuevas) || nuevas < 1) return;
-            
-            // Si las nuevas cuotas son menos, borrar las pagadas que sobran
-            if (nuevas < g.cuotas) {
-                g.cuotasPagadas = (g.cuotasPagadas || []).filter(i => i < nuevas);
-            }
-            
+            if (nuevas < g.cuotas) { g.cuotasPagadas = (g.cuotasPagadas || []).filter(i => i < nuevas); }
             g.cuotas = nuevas;
             guardarYSinc();
             verCuotas(gastoId);
-            mostrarToast('✅ Cuotas actualizadas a ' + nuevas);
         }
-        
-        function cambiarValorCuota(gastoId, nuevoValor) {
+
+        function cambiarPrimerCargo(gastoId, nuevaFecha) {
             const g = datos.gastos.find(x => x.id === gastoId);
-            if (g) {
-                g.valorCuota = parseInt(nuevoValor) || 0;
-                guardarYSinc();
-                verCuotas(gastoId);
-            }
+            if (g) { g.primerCargo = nuevaFecha || ''; guardarYSinc(); verCuotas(gastoId); }
         }
-        
+
         function eliminarCompra(gastoId) {
             if (confirm('¿Eliminar esta compra? No se puede deshacer.')) {
                 datos.gastos = datos.gastos.filter(g => g.id !== gastoId);
@@ -439,159 +373,64 @@
         }
 
         function mostrarToast(msg) {
-            const t = document.createElement('div');
-            t.className = 'toast';
-            t.textContent = msg;
-            document.body.appendChild(t);
-            setTimeout(() => document.body.removeChild(t), 2500);
+            const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+            document.body.appendChild(t); setTimeout(() => document.body.removeChild(t), 2500);
         }
-        
 
-        // ============ SINCRONIZACIÓN ============
-     // ============ SINCRONIZACIÓN FIREBASE ============
-                async function guardarEnNube() {
+        // ============ SINCRONIZACIÓN FIREBASE ============
+        async function guardarEnNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                const personas = JSON.parse(localStorage.getItem('gestor_tc_personas') || '["Titular","Persona 1","Persona 2","Persona 3"]');
-                const datosCompletos = {
-                    ...datos,
-                    personas: personas
-                };
+                const personas = JSON.parse(localStorage.getItem('gestor_tc_personas') || '["Titular","Persona 1","Persona 2","Persona 3","Alonso"]');
+                const datosCompletos = { ...datos, personas: personas };
                 await db.collection('datos').doc('principal').set(datosCompletos);
                 badge.textContent = '🟢 Sincronizado';
                 badge.className = 'sync-badge';
-            } catch(e) {
-                console.error('Error Firebase:', e);
-                badge.textContent = '💾 Local';
-                badge.className = 'sync-badge local';
-            }
-        }
-        
-        async function cargarDeNube() {
-    const badge = document.getElementById('syncBadge');
-    try {
-        const doc = await db.collection('datos').doc('principal').get();
-        if (doc.exists) {
-            const data = doc.data();
-            if (data.gastos && data.gastos.length > 0) {
-                datos = { 
-                    gastos: data.gastos, 
-                    historicoFacturaciones: data.historicoFacturaciones || [], 
-                    tema: data.tema || 'dark' 
-                };
-                
-                // Cargar personas
-                if (data.personas && Array.isArray(data.personas)) {
-                    localStorage.setItem('gestor_tc_personas', JSON.stringify(data.personas));
-                }
-                
-                badge.textContent = '🟢 Sincronizado';
-                badge.className = 'sync-badge';
-                return true;
-            }
-        }
-        badge.textContent = '💾 Local';
-        badge.className = 'sync-badge local';
-        return false;
-    } catch(e) {
-        badge.textContent = '🟡 Sin conexión';
-        badge.className = 'sync-badge local';
-        return false;
-    }
-}
-        
-        function guardarYSinc() {
-            guardarDatosLocal();
-            guardarEnNube();
-            renderizarTodo();
+            } catch(e) { badge.textContent = '💾 Local'; badge.className = 'sync-badge local'; }
         }
 
-        // ============ FUNCIONES ============
+        async function cargarDeNube() {
+            const badge = document.getElementById('syncBadge');
+            try {
+                const doc = await db.collection('datos').doc('principal').get();
+                if (doc.exists) {
+                    const data = doc.data();
+                    if (data.gastos && data.gastos.length > 0) {
+                        datos = { gastos: data.gastos, historicoFacturaciones: data.historicoFacturaciones || [], tema: data.tema || 'dark' };
+                        if (data.personas && Array.isArray(data.personas)) {
+                            localStorage.setItem('gestor_tc_personas', JSON.stringify(data.personas));
+                        }
+                        badge.textContent = '🟢 Sincronizado';
+                        badge.className = 'sync-badge';
+                        return true;
+                    }
+                }
+                badge.textContent = '💾 Local'; badge.className = 'sync-badge local'; return false;
+            } catch(e) { badge.textContent = '🟡 Sin conexión'; badge.className = 'sync-badge local'; return false; }
+        }
+
+        function guardarYSinc() { guardarDatosLocal(); guardarEnNube(); renderizarTodo(); }
+
+        // ============ FUNCIONES DE CÁLCULO ============
         function cuotaMensual(g) {
             if (g.valorCuota && g.valorCuota > 0) return g.valorCuota;
             return Math.round(g.montoTotal / g.cuotas);
         }
+
+        function fechaPrimeraCuota(g) {
+            if (g.primerCargo) {
+                const [anio, mes] = g.primerCargo.split('-').map(Number);
+                return new Date(anio, mes - 1, 5);
+            }
+            return new Date(g.fecha + 'T00:00:00');
+        }
+
         function cuotasRestantes(g) { return Math.max(0, g.cuotas - (g.cuotasPagadas ? g.cuotasPagadas.length : 0)); }
 
-       function calcularMontoFacturado() {
-    // Usar el período guardado o calcular el actual
-    let periodoActual = localStorage.getItem('periodo_actual');
-    
-    if (!periodoActual) {
-        // Primera vez: calcular según fecha actual
-        const hoy = new Date();
-        const dia = hoy.getDate();
-        const mes = hoy.getMonth();
-        const anio = hoy.getFullYear();
-        
-        if (dia >= 20) {
-            periodoActual = `${anio}-${mes}-20`;
-        } else {
-            periodoActual = `${anio}-${mes-1}-20`;
-        }
-        localStorage.setItem('periodo_actual', periodoActual);
-    }
-    
-    const [anioIni, mesIni, diaIni] = periodoActual.split('-').map(Number);
-    const inicioPeriodo = new Date(anioIni, mesIni, 20);
-    const finPeriodo = new Date(anioIni, mesIni + 1, 19);
-    
-    // Mostrar el período en pantalla
-    const fechaStr = `20/${String(mesIni + 1).padStart(2,'0')}/${anioIni} - 19/${String(mesIni + 2).padStart(2,'0')}/${anioIni}`;
-    const fechaItems = document.querySelectorAll('.fecha-item .valor');
-    if (fechaItems.length >= 1) {
-        fechaItems[0].textContent = fechaStr;
-    }
-    
-    let totalFacturado = 0;
-    
-    datos.gastos.forEach(g => {
-        if (g.tipoFacturacion === 'despues') return;
-        
-        const cuotaMens = cuotaMensual(g);
-        const fechaInicio = new Date(g.fecha + 'T00:00:00');
-        const pagadasSet = new Set(g.cuotasPagadas || []);
-        
-        for (let i = 0; i < g.cuotas; i++) {
-            if (pagadasSet.has(i)) continue;
-            
-            const fechaCuota = new Date(fechaInicio);
-            fechaCuota.setMonth(fechaCuota.getMonth() + i);
-            
-            if (fechaCuota >= inicioPeriodo && fechaCuota <= finPeriodo) {
-                totalFacturado += cuotaMens;
-            }
-        }
-    });
-    
-    return totalFacturado;
-}
-function actualizarFechasFacturacion() {
-    let periodoActual = localStorage.getItem('periodo_actual');
-    if (!periodoActual) {
-        periodoActual = '2026-2-20'; // Marzo 2026
-        localStorage.setItem('periodo_actual', periodoActual);
-    }
-    
-    const [anio, mes] = periodoActual.split('-').map(Number);
-    
-    // Período facturación: 20/mes al 19/mes+1
-    const inicio = `20/${String(mes + 1).padStart(2,'0')}/${anio}`;
-    const fin = `19/${String(mes + 2).padStart(2,'0')}/${anio}`;
-    
-    // Fecha límite de pago: 05 del mes siguiente al cierre
-    const limitePago = `05/${String(mes + 3).padStart(2,'0')}/${anio}`;
-    
-    const periodoEl = document.getElementById('periodoFacturacion');
-    const pagoEl = document.getElementById('fechaLimitePago');
-    
-    if (periodoEl) periodoEl.textContent = inicio + ' - ' + fin;
-    if (pagoEl) pagoEl.textContent = limitePago;
-}
         function proyeccionCuotas() {
             const proy = {};
             datos.gastos.forEach(g => {
-                const ini = new Date(g.fecha + 'T00:00:00');
+                const ini = fechaPrimeraCuota(g);
                 const pagSet = new Set(g.cuotasPagadas || []);
                 for (let i = 0; i < g.cuotas; i++) {
                     const d = new Date(ini); d.setMonth(d.getMonth() + i);
@@ -607,13 +446,81 @@ function actualizarFechasFacturacion() {
         function prepagoTotal() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
         function cupoUtilizado() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
 
+        function calcularMontoFacturado() {
+            let periodoActual = localStorage.getItem('periodo_actual');
+            if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
+            const [anioIni, mesIni] = periodoActual.split('-').map(Number);
+            const inicioPeriodo = new Date(anioIni, mesIni, 20);
+            const finPeriodo = new Date(anioIni, mesIni + 1, 19);
+            
+            let totalFacturado = 0;
+            datos.gastos.forEach(g => {
+                if (g.tipoFacturacion === 'despues') return;
+                const cuotaMens = cuotaMensual(g);
+                const ini = fechaPrimeraCuota(g);
+                const pagadasSet = new Set(g.cuotasPagadas || []);
+                for (let i = 0; i < g.cuotas; i++) {
+                    if (pagadasSet.has(i)) continue;
+                    const fc = new Date(ini); fc.setMonth(fc.getMonth() + i);
+                    if (fc >= inicioPeriodo && fc <= finPeriodo) totalFacturado += cuotaMens;
+                }
+            });
+            return totalFacturado;
+        }
+
+        function calcularTotalesPorPersona() {
+            let periodoActual = localStorage.getItem('periodo_actual');
+            if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
+            const [anioIni, mesIni] = periodoActual.split('-').map(Number);
+            const inicioPeriodo = new Date(anioIni, mesIni, 20);
+            const finPeriodo = new Date(anioIni, mesIni + 1, 19);
+            const inicioProximo = new Date(anioIni, mesIni + 1, 20);
+            const finProximo = new Date(anioIni, mesIni + 2, 19);
+            
+            const totalesActual = {}, totalesProximo = {};
+            const personas = obtenerPersonas();
+            personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
+            
+            datos.gastos.forEach(g => {
+                const cuotaMens = cuotaMensual(g);
+                const ini = fechaPrimeraCuota(g);
+                const pagadasSet = new Set(g.cuotasPagadas || []);
+                for (let i = 0; i < g.cuotas; i++) {
+                    if (pagadasSet.has(i)) continue;
+                    const fc = new Date(ini); fc.setMonth(fc.getMonth() + i);
+                    if (fc >= inicioPeriodo && fc <= finPeriodo) totalesActual[g.persona] = (totalesActual[g.persona] || 0) + cuotaMens;
+                    if (fc >= inicioProximo && fc <= finProximo) totalesProximo[g.persona] = (totalesProximo[g.persona] || 0) + cuotaMens;
+                }
+            });
+            return { actual: totalesActual, proximo: totalesProximo };
+        }
+
+        function actualizarFechasFacturacion() {
+            let periodoActual = localStorage.getItem('periodo_actual');
+            if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
+            const [anio, mes] = periodoActual.split('-').map(Number);
+            const inicio = `20/${String(mes + 1).padStart(2,'0')}/${anio}`;
+            const fin = `19/${String(mes + 2).padStart(2,'0')}/${anio}`;
+            const limitePago = `05/${String(mes + 3).padStart(2,'0')}/${anio}`;
+            const pEl = document.getElementById('periodoFacturacion');
+            const lEl = document.getElementById('fechaLimitePago');
+            if (pEl) pEl.textContent = inicio + ' - ' + fin;
+            if (lEl) lEl.textContent = limitePago;
+        }
+
+        function avanzarPeriodo() {
+            let periodoActual = localStorage.getItem('periodo_actual');
+            if (!periodoActual) return;
+            const [anio, mes] = periodoActual.split('-').map(Number);
+            const nuevoPeriodo = `${anio}-${mes + 1}-20`;
+            localStorage.setItem('periodo_actual', nuevoPeriodo);
+        }
+
         function renderizarTodo() {
             const usado = cupoUtilizado();
             const disp = CONFIG.cupoCompras - usado;
             const porc = (usado / CONFIG.cupoCompras) * 100;
             const prep = prepagoTotal();
-            
-            // Calcular monto facturado dinámicamente
             const montoF = calcularMontoFacturado();
             
             document.getElementById('montoFacturado').textContent = '$' + montoF.toLocaleString('es-CL');
@@ -622,41 +529,28 @@ function actualizarFechasFacturacion() {
             document.getElementById('montoPrepago').textContent = '$' + prep.toLocaleString('es-CL');
             document.getElementById('barraProgreso').style.width = Math.min(100, porc) + '%';
             document.getElementById('porcentajeCupo').textContent = porc.toFixed(1) + '% cupo utilizado';
-        
-            // Actualizar fechas mostradas
-            actualizarFechasFacturacion();
             
+            actualizarFechasFacturacion();
             alertaVencimiento();
             renderizarPanelActivo();
             actualizarGrafico();
+            renderizarTotalesPersonas();
         }
 
         function alertaVencimiento() {
-    const a = document.getElementById('alertaVencimiento');
-    let periodoActual = localStorage.getItem('periodo_actual');
-    if (!periodoActual) return;
-    
-    const [anio, mes] = periodoActual.split('-').map(Number);
-    
-    // Fecha límite: 05 del mes siguiente al cierre (mes+2 porque mes es base 0)
-    const fechaLimite = new Date(anio, mes + 2, 5);
-    const hoy = new Date();
-    const diff = fechaLimite.getTime() - hoy.getTime();
-    const dias = Math.ceil(diff / 86400000);
-    
-    if (dias < 0) {
-        a.className = 'alerta-vencimiento';
-        a.innerHTML = '🔴 ¡VENCIDO! Tu pago venció hace ' + Math.abs(dias) + ' días';
-    } else if (dias <= 3) {
-        a.className = 'alerta-vencimiento';
-        a.innerHTML = '🔴 ¡Urgente! Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')';
-    } else if (dias <= 7) {
-        a.className = 'alerta-vencimiento amarilla';
-        a.innerHTML = '⚠️ Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')';
-    } else {
-        a.className = 'alerta-vencimiento hidden';
-    }
-}
+            const a = document.getElementById('alertaVencimiento');
+            let periodoActual = localStorage.getItem('periodo_actual');
+            if (!periodoActual) return;
+            const [anio, mes] = periodoActual.split('-').map(Number);
+            const fechaLimite = new Date(anio, mes + 2, 5);
+            const hoy = new Date();
+            const diff = fechaLimite.getTime() - hoy.getTime();
+            const dias = Math.ceil(diff / 86400000);
+            if (dias < 0) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡VENCIDO! Tu pago venció hace ' + Math.abs(dias) + ' días'; }
+            else if (dias <= 3) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡Urgente! Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')'; }
+            else if (dias <= 7) { a.className = 'alerta-vencimiento amarilla'; a.innerHTML = '⚠️ Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')'; }
+            else { a.className = 'alerta-vencimiento hidden'; }
+        }
 
         function renderizarPanelActivo() {
             const tab = document.querySelector('.tab.active');
@@ -674,10 +568,7 @@ function actualizarFechasFacturacion() {
             const fe = document.getElementById('filtroEstado').value;
             let lista = [...datos.gastos];
             if (fp !== 'todos') lista = lista.filter(g => g.persona === fp);
-            if (fm) {
-                const [y, m] = fm.split('-');
-                lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; });
-            }
+            if (fm) { const [y, m] = fm.split('-'); lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; }); }
             if (fe === 'pendientes') lista = lista.filter(g => cuotasRestantes(g) > 0);
             else if (fe === 'pagados') lista = lista.filter(g => cuotasRestantes(g) === 0);
             const cont = document.getElementById('listaGastos');
@@ -687,8 +578,7 @@ function actualizarFechasFacturacion() {
                 const pag = g.cuotasPagadas ? g.cuotasPagadas.length : 0;
                 const cm = cuotaMensual(g);
                 const todo = rest === 0;
-                const pClass = g.persona === 'Titular' ? 'persona-titular' : g.persona === 'Persona 1' ? 'persona-1' : g.persona === 'Persona 2' ? 'persona-2' : 'persona-3';
-                return `<div class="gasto-row ${todo ? 'pagado' : ''} ${pClass}" onclick="verCuotas(${g.id})">
+                return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
                     <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${g.persona}</span></div></div>
                     <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
                 </div>`;
@@ -723,37 +613,49 @@ function actualizarFechasFacturacion() {
             g.innerHTML = datos.historicoFacturaciones.map(h => `<div class="barra-item"><div class="barra facturado" style="height:${Math.max(4,(h.monto/max)*100)}px"></div><div class="barra pagado" style="height:${Math.max(4,(h.pagado/max)*100)}px"></div><div class="barra-label">${h.periodo.split(' - ')[1]?.split('/')[0]||''}/${h.periodo.split('/')[2]?.slice(2,4)||''}</div><div class="barra-valor">$${Math.round(h.monto/1000)}k</div></div>`).join('');
         }
 
-      function verCuotas(id) {
-    const g = datos.gastos.find(x => x.id === id);
-    if (!g) return;
-    const cm = cuotaMensual(g);
-    const pagSet = new Set(g.cuotasPagadas || []);
-    const personas = obtenerPersonas();
-    const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
-    let h = `<p><strong>${g.descripcion}</strong></p>
-        <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
-       <p>$${g.montoTotal.toLocaleString('es-CL')} en 
-    <input type="number" id="editCuotas_${g.id}" value="${g.cuotas}" min="1" max="36"
-        onchange="cambiarCuotas(${g.id}, this.value)"
-        style="background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;width:60px;font-size:0.85rem;display:inline-block;text-align:center;"
-    cuotas de $${cm.toLocaleString('es-CL')}
-</p>
-        <p style="font-size:0.8rem;margin:4px 0;">
-            💰 Valor cuota: $<input type="number" id="editVC_${g.id}" value="${g.valorCuota || cm}" 
-            style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:100px;font-size:0.8rem;"
-            onchange="cambiarValorCuota(${g.id}, this.value)">
-            ${g.valorCuota > 0 ? '<span style="color:var(--accent2);"> (con interés)</span>' : '<span style="color:var(--accent);"> (sin interés)</span>'}
-        </p>
-        <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
-        <hr style="border-color:var(--border);margin:10px 0">`;
-    for (let i = 0; i < g.cuotas; i++) {
-        const fc = new Date(g.fecha + 'T00:00:00'); fc.setMonth(fc.getMonth() + i);
-        h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cm.toLocaleString('es-CL')}</span></div>`;
-    }
-    h += `<hr style="border-color:var(--border);margin:10px 0"><button onclick="todasCuotas(${g.id})" class="btn-primary btn-sm">✅ Todas</button> <button onclick="ningunaCuota(${g.id})" class="btn-primary btn-sm" style="background:var(--accent2)">❌ Ninguna</button>`;
-    document.getElementById('detalleCuotas').innerHTML = h;
-    document.getElementById('modalCuotas').style.display = 'block';
-}
+        function renderizarTotalesPersonas() {
+            const totales = calcularTotalesPorPersona();
+            const cont = document.getElementById('totalesPersonas');
+            if (!cont) return;
+            let html = '';
+            const personas = obtenerPersonas();
+            personas.forEach(p => {
+                const ta = totales.actual[p] || 0;
+                const tp = totales.proximo[p] || 0;
+                if (ta > 0 || tp > 0) {
+                    html += `<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:8px;text-align:center;">
+                        <div style="font-size:0.75rem;color:#888;">👤 ${p}</div>
+                        <div style="font-weight:bold;font-size:0.85rem;">$${ta.toLocaleString('es-CL')}</div>
+                        <div style="font-size:0.6rem;color:var(--accent);">Próx: $${tp.toLocaleString('es-CL')}</div>
+                    </div>`;
+                }
+            });
+            cont.innerHTML = html || '<div style="color:#888;text-align:center;font-size:0.8rem;">Sin cuotas este período</div>';
+        }
+
+        function verCuotas(id) {
+            const g = datos.gastos.find(x => x.id === id);
+            if (!g) return;
+            const cm = cuotaMensual(g);
+            const pagSet = new Set(g.cuotasPagadas || []);
+            const personas = obtenerPersonas();
+            const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
+            const fechaInicio = fechaPrimeraCuota(g);
+            let h = `<p><strong>${g.descripcion}</strong></p>
+                <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
+                <p style="font-size:0.8rem;margin:4px 0;">📅 Primer cargo: <input type="month" id="editPC_${g.id}" value="${g.primerCargo || ''}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;" onchange="cambiarPrimerCargo(${g.id}, this.value)"></p>
+                <p>$${g.montoTotal.toLocaleString('es-CL')} en <input type="number" id="editCuotas_${g.id}" value="${g.cuotas}" min="1" max="36" style="background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;width:60px;font-size:0.85rem;display:inline-block;text-align:center;" onchange="cambiarCuotas(${g.id}, this.value)"> cuotas de $${cm.toLocaleString('es-CL')}</p>
+                <p style="font-size:0.8rem;margin:4px 0;">💰 Valor cuota: $<input type="number" id="editVC_${g.id}" value="${g.valorCuota || cm}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:100px;font-size:0.8rem;" onchange="cambiarValorCuota(${g.id}, this.value)"> ${g.valorCuota > 0 ? '<span style="color:var(--accent2);">(con interés)</span>' : '<span style="color:var(--accent);">(sin interés)</span>'}</p>
+                <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
+                <hr style="border-color:var(--border);margin:10px 0">`;
+            for (let i = 0; i < g.cuotas; i++) {
+                const fc = new Date(fechaInicio); fc.setMonth(fc.getMonth() + i);
+                h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cm.toLocaleString('es-CL')}</span></div>`;
+            }
+            h += `<hr style="border-color:var(--border);margin:10px 0"><button onclick="todasCuotas(${g.id})" class="btn-primary btn-sm">✅ Todas</button> <button onclick="ningunaCuota(${g.id})" class="btn-primary btn-sm" style="background:var(--accent2)">❌ Ninguna</button>`;
+            document.getElementById('detalleCuotas').innerHTML = h;
+            document.getElementById('modalCuotas').style.display = 'block';
+        }
 
         function toggleCuota(gid, idx, chk) {
             const g = datos.gastos.find(x => x.id === gid);
@@ -791,32 +693,26 @@ function actualizarFechasFacturacion() {
             document.getElementById('modalCuotas').style.display = 'block';
         }
 
-        function formatoFecha(f) {
-            return new Date(f + 'T00:00:00').toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric' });
-        }
+        function formatoFecha(f) { return new Date(f + 'T00:00:00').toLocaleDateString('es-CL', { day:'2-digit', month:'2-digit', year:'numeric' }); }
 
         function exportarJSON() {
             const blob = new Blob([JSON.stringify(datos, null, 2)], {type: 'application/json'});
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'gestor-tc-respaldo-' + new Date().toISOString().slice(0,10) + '.json';
-            a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = 'gestor-tc-respaldo-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
             mostrarToast('📥 Datos exportados');
         }
 
         function importarJSON(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
             reader.onload = function(ev) {
                 try {
                     const imp = JSON.parse(ev.target.result);
-                    if (imp && imp.gastos) { datos = imp; guardarYSinc(); mostrarToast('📤 Importado correctamente'); }
-                    else mostrarToast('❌ Archivo inválido');
-                } catch(err) { mostrarToast('❌ Error al leer archivo'); }
+                    if (imp && imp.gastos) { datos = imp; guardarYSinc(); mostrarToast('📤 Importado'); }
+                    else mostrarToast('❌ Inválido');
+                } catch(err) { mostrarToast('❌ Error'); }
             };
-            reader.readAsText(file);
-            e.target.value = '';
+            reader.readAsText(file); e.target.value = '';
         }
 
         // ============ EVENTOS ============
@@ -825,63 +721,53 @@ function actualizarFechasFacturacion() {
             document.getElementById('fechaCompra').valueAsDate = new Date();
         });
 
-      document.getElementById('formCompra').addEventListener('submit', e => {
-                e.preventDefault();
-                const g = {
-                    id: Date.now(),
-                    fecha: document.getElementById('fechaCompra').value,
-                    descripcion: document.getElementById('descripcion').value.trim(),
-                    montoTotal: parseInt(document.getElementById('montoTotal').value),
-                    cuotas: parseInt(document.getElementById('cuotas').value),
-                    valorCuota: parseInt(document.getElementById('valorCuota').value) || 0,
-                    persona: document.getElementById('persona').value,
-                    tipoFacturacion: document.getElementById('tipoFacturacion').value,
-                    cuotasPagadas: [],
-                };
-                if (!g.descripcion || isNaN(g.montoTotal) || g.montoTotal <= 0) { alert('Completa todos los campos'); return; }
-                datos.gastos.push(g);
-                guardarYSinc();
-                document.getElementById('modalCompra').style.display = 'none';
-                document.getElementById('formCompra').reset();
+        document.getElementById('formCompra').addEventListener('submit', e => {
+            e.preventDefault();
+            const g = {
+                id: Date.now(),
+                fecha: document.getElementById('fechaCompra').value,
+                descripcion: document.getElementById('descripcion').value.trim(),
+                montoTotal: parseInt(document.getElementById('montoTotal').value),
+                cuotas: parseInt(document.getElementById('cuotas').value),
+                primerCargo: document.getElementById('primerCargoMes').value || '',
+                valorCuota: parseInt(document.getElementById('valorCuota').value) || 0,
+                persona: document.getElementById('persona').value,
+                tipoFacturacion: document.getElementById('tipoFacturacion').value,
+                cuotasPagadas: [],
+            };
+            if (!g.descripcion || isNaN(g.montoTotal) || g.montoTotal <= 0) { alert('Completa todos los campos'); return; }
+            datos.gastos.push(g);
+            guardarYSinc();
+            document.getElementById('modalCompra').style.display = 'none';
+            document.getElementById('formCompra').reset();
         });
 
         document.querySelector('.btn-pago-flotante').addEventListener('click', () => {
             document.getElementById('modalPago').style.display = 'block';
             document.getElementById('fechaPagoInput').valueAsDate = new Date();
-            const fact = datos.historicoFacturaciones[datos.historicoFacturaciones.length - 1];
-            document.getElementById('montoPago').value = fact ? fact.monto : '';
+            document.getElementById('montoPago').value = calcularMontoFacturado();
         });
 
-       document.getElementById('formPago').addEventListener('submit', e => {
+        document.getElementById('formPago').addEventListener('submit', e => {
             e.preventDefault();
             const monto = parseInt(document.getElementById('montoPago').value);
-            const fact = datos.historicoFacturaciones[datos.historicoFacturaciones.length - 1];
             const montoFacturado = calcularMontoFacturado();
-            
-            if (fact && !isNaN(monto)) {
-                fact.pagado += monto;
-                
-                // Si pagó el total o más, avanzar al siguiente período
-                if (fact.pagado >= montoFacturado) {
-                    avanzarPeriodo();
-                    fact.pagado = 0;
-                    fact.monto = 0;
-                    mostrarToast('✅ Pago registrado. Período avanzado.');
-                } else {
-                    mostrarToast('💵 Pago parcial registrado.');
-                }
+            if (monto >= montoFacturado) {
+                avanzarPeriodo();
+                mostrarToast('✅ Pago registrado. Período avanzado.');
+            } else {
+                mostrarToast('💵 Pago parcial registrado.');
             }
-            
             guardarYSinc();
             document.getElementById('modalPago').style.display = 'none';
             document.getElementById('formPago').reset();
-        });        
+        });
 
         document.getElementById('tipoPago').addEventListener('change', function() {
-            const fact = datos.historicoFacturaciones[datos.historicoFacturaciones.length - 1];
             const inp = document.getElementById('montoPago');
-            if (this.value === 'total') { inp.value = fact ? fact.monto : ''; inp.disabled = true; }
-            else if (this.value === 'minimo') { inp.value = fact ? Math.round(fact.monto * 0.17) : ''; inp.disabled = true; }
+            const montoF = calcularMontoFacturado();
+            if (this.value === 'total') { inp.value = montoF; inp.disabled = true; }
+            else if (this.value === 'minimo') { inp.value = Math.round(montoF * 0.17); inp.disabled = true; }
             else { inp.disabled = false; inp.focus(); }
         });
 
@@ -912,7 +798,7 @@ function actualizarFechasFacturacion() {
             const nombre = document.getElementById('nuevaPersona').value.trim();
             if (!nombre) { mostrarToast('⚠️ Ingresa un nombre'); return; }
             const personas = obtenerPersonas();
-            if (personas.includes(nombre)) { mostrarToast('⚠️ Ya existe esa persona'); return; }
+            if (personas.includes(nombre)) { mostrarToast('⚠️ Ya existe'); return; }
             personas.push(nombre);
             guardarPersonas(personas);
             document.getElementById('nuevaPersona').value = '';
@@ -948,12 +834,14 @@ function actualizarFechasFacturacion() {
 
         // ============ INICIO ============
         (async function() {
-    if (datos.tema === 'light') document.body.classList.add('light');
-    await cargarDeNube();  // ← Esto carga personas al localStorage
-    actualizarSelectsPersonas();  // ← Esto lee del localStorage
-    renderizarTodo();
-    setInterval(alertaVencimiento, 3600000);
-})();
+            if (datos.tema === 'light') document.body.classList.add('light');
+            await cargarDeNube();
+            actualizarSelectsPersonas();
+            if (datos.gastos.length === 0) await guardarEnNube();
+            if (!localStorage.getItem('periodo_actual')) localStorage.setItem('periodo_actual', '2026-2-20');
+            renderizarTodo();
+            setInterval(alertaVencimiento, 3600000);
+        })();
     </script>
 </body>
 </html>
