@@ -513,6 +513,75 @@
         }
         function cuotasRestantes(g) { return Math.max(0, g.cuotas - (g.cuotasPagadas ? g.cuotasPagadas.length : 0)); }
 
+        function calcularMontoFacturado() {
+    const hoy = new Date();
+    const diaActual = hoy.getDate();
+    const mesActual = hoy.getMonth();
+    const anioActual = hoy.getFullYear();
+    
+    // Determinar el período de facturación actual
+    let inicioPeriodo, finPeriodo;
+    
+    if (diaActual >= 19) {
+        // Estamos en el período: 19 de este mes → 18 del próximo mes
+        inicioPeriodo = new Date(anioActual, mesActual, 19);
+        finPeriodo = new Date(anioActual, mesActual + 1, 18);
+    } else {
+        // Estamos en el período: 19 del mes anterior → 18 de este mes
+        inicioPeriodo = new Date(anioActual, mesActual - 1, 19);
+        finPeriodo = new Date(anioActual, mesActual, 18);
+    }
+    
+    let totalFacturado = 0;
+    
+    datos.gastos.forEach(g => {
+        // Solo compras marcadas como "antes" (este período)
+        if (g.tipoFacturacion === 'despues') return;
+        
+        const cuotaMens = cuotaMensual(g);
+        const fechaInicio = new Date(g.fecha + 'T00:00:00');
+        const pagadasSet = new Set(g.cuotasPagadas || []);
+        
+        // Recorrer cada cuota de la compra
+        for (let i = 0; i < g.cuotas; i++) {
+            if (pagadasSet.has(i)) continue; // Saltar cuotas pagadas
+            
+            const fechaCuota = new Date(fechaInicio);
+            fechaCuota.setMonth(fechaCuota.getMonth() + i);
+            
+            // Verificar si esta cuota cae en el período actual
+            if (fechaCuota >= inicioPeriodo && fechaCuota <= finPeriodo) {
+                totalFacturado += cuotaMens;
+            }
+        }
+    });
+    
+    return totalFacturado;
+}
+
+function actualizarFechasFacturacion() {
+    const hoy = new Date();
+    const diaActual = hoy.getDate();
+    const mesActual = hoy.getMonth();
+    const anioActual = hoy.getFullYear();
+    
+    let inicioStr, finStr;
+    
+    if (diaActual >= 19) {
+        inicioStr = `19/${String(mesActual + 1).padStart(2,'0')}/${anioActual}`;
+        finStr = `18/${String(mesActual + 2).padStart(2,'0')}/${anioActual}`;
+    } else {
+        inicioStr = `19/${String(mesActual).padStart(2,'0')}/${anioActual}`;
+        finStr = `18/${String(mesActual + 1).padStart(2,'0')}/${anioActual}`;
+    }
+    
+    // Actualizar las fechas en el header
+    const fechaItems = document.querySelectorAll('.fecha-item .valor');
+    if (fechaItems.length >= 2) {
+        fechaItems[0].textContent = inicioStr;
+    }
+}
+        
         function proyeccionCuotas() {
             const proy = {};
             datos.gastos.forEach(g => {
@@ -537,14 +606,20 @@
             const disp = CONFIG.cupoCompras - usado;
             const porc = (usado / CONFIG.cupoCompras) * 100;
             const prep = prepagoTotal();
-            const fact = datos.historicoFacturaciones[datos.historicoFacturaciones.length - 1];
-            const montoF = fact ? fact.monto : 0;
+            
+            // Calcular monto facturado dinámicamente
+            const montoF = calcularMontoFacturado();
+            
             document.getElementById('montoFacturado').textContent = '$' + montoF.toLocaleString('es-CL');
             document.getElementById('montoMinimo').textContent = '$' + Math.round(montoF * 0.17).toLocaleString('es-CL');
             document.getElementById('cupoDisponible').textContent = '$' + Math.max(0, disp).toLocaleString('es-CL');
             document.getElementById('montoPrepago').textContent = '$' + prep.toLocaleString('es-CL');
             document.getElementById('barraProgreso').style.width = Math.min(100, porc) + '%';
             document.getElementById('porcentajeCupo').textContent = porc.toFixed(1) + '% cupo utilizado';
+        
+            // Actualizar fechas mostradas
+            actualizarFechasFacturacion();
+            
             alertaVencimiento();
             renderizarPanelActivo();
             actualizarGrafico();
