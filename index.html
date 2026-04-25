@@ -481,33 +481,66 @@
     
     return total;
 }
-        function calcularTotalesPorPersona() {
-            let periodoActual = localStorage.getItem('periodo_actual');
-            if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
-            const [anioIni, mesIni] = periodoActual.split('-').map(Number);
-            const inicioPeriodo = new Date(anioIni, mesIni, 20);
-            const finPeriodo = new Date(anioIni, mesIni + 1, 19);
-            const inicioProximo = new Date(anioIni, mesIni + 1, 20);
-            const finProximo = new Date(anioIni, mesIni + 2, 19);
-            
-            const totalesActual = {}, totalesProximo = {};
-            const personas = obtenerPersonas();
-            personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
-            
-            datos.gastos.forEach(g => {
-                const cuotaMens = cuotaMensual(g);
-                const ini = fechaPrimeraCuota(g);
-                const pagadasSet = new Set(g.cuotasPagadas || []);
-                for (let i = 0; i < g.cuotas; i++) {
-                    if (pagadasSet.has(i)) continue;
-                    const fc = new Date(ini); fc.setMonth(fc.getMonth() + i);
-                    if (fc >= inicioPeriodo && fc <= finPeriodo) totalesActual[g.persona] = (totalesActual[g.persona] || 0) + cuotaMens;
-                    if (fc >= inicioProximo && fc <= finProximo) totalesProximo[g.persona] = (totalesProximo[g.persona] || 0) + cuotaMens;
-                }
-            });
-            return { actual: totalesActual, proximo: totalesProximo };
+       function calcularTotalesPorPersona() {
+    let periodoActual = localStorage.getItem('periodo_actual');
+    if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
+    const [anioIni, mesIni] = periodoActual.split('-').map(Number);
+    const inicio = new Date(anioIni, mesIni, 20);
+    const fin = new Date(anioIni, mesIni + 1, 19);
+    const inicioProx = new Date(anioIni, mesIni + 1, 20);
+    const finProx = new Date(anioIni, mesIni + 2, 19);
+    
+    const totalesActual = {}, totalesProximo = {};
+    const personas = obtenerPersonas();
+    personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
+    
+    datos.gastos.forEach(g => {
+        if (g.tipoFacturacion === 'despues') return;
+        const cm = cuotaMensual(g);
+        const ini = fechaPrimeraCuota(g);
+        const pagSet = new Set(g.cuotasPagadas || []);
+        const fc = new Date(g.fecha + 'T00:00:00');
+        const esEntel = g.descripcion.includes('Entel Ventas');
+        
+        // PERÍODO ACTUAL
+        // 1 cuota hecha en período
+        if (g.cuotas === 1 && fc >= inicio && fc <= fin && !pagSet.has(0)) {
+            totalesActual[g.persona] = (totalesActual[g.persona] || 0) + g.montoTotal;
         }
-
+        // Compra en cuotas del período (excepto Entel)
+        else if (g.cuotas > 1 && !esEntel && fc >= inicio && fc <= fin && !pagSet.has(0)) {
+            totalesActual[g.persona] = (totalesActual[g.persona] || 0) + cm;
+        }
+        // Cuotas que vencen en período actual
+        for (let i = 0; i < g.cuotas; i++) {
+            if (pagSet.has(i)) continue;
+            const vc = new Date(ini); vc.setMonth(vc.getMonth() + i);
+            if (vc >= inicio && vc <= fin) {
+                totalesActual[g.persona] = (totalesActual[g.persona] || 0) + cm;
+            }
+        }
+        
+        // PRÓXIMO PERÍODO
+        // 1 cuota hecha en próximo período
+        if (g.cuotas === 1 && fc >= inicioProx && fc <= finProx && !pagSet.has(0)) {
+            totalesProximo[g.persona] = (totalesProximo[g.persona] || 0) + g.montoTotal;
+        }
+        // Compra en cuotas del próximo período (excepto Entel si no corresponde)
+        else if (g.cuotas > 1 && fc >= inicioProx && fc <= finProx && !pagSet.has(0)) {
+            totalesProximo[g.persona] = (totalesProximo[g.persona] || 0) + cm;
+        }
+        // Cuotas que vencen en próximo período
+        for (let i = 0; i < g.cuotas; i++) {
+            if (pagSet.has(i)) continue;
+            const vc = new Date(ini); vc.setMonth(vc.getMonth() + i);
+            if (vc >= inicioProx && vc <= finProx) {
+                totalesProximo[g.persona] = (totalesProximo[g.persona] || 0) + cm;
+            }
+        }
+    });
+    
+    return { actual: totalesActual, proximo: totalesProximo };
+}
         function actualizarFechasFacturacion() {
             let periodoActual = localStorage.getItem('periodo_actual');
             if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
