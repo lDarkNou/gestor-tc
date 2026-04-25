@@ -332,22 +332,16 @@
 
         // ============ GESTIÓN DE PERSONAS ============
       function obtenerPersonas() {
-            const guardado = localStorage.getItem('gestor_tc_personas');
-            if (guardado) {
-                try {
-                    const parsed = JSON.parse(guardado);
-                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-                } catch(e) {}
-            }
-            return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
-        }
-               function guardarPersonas(personas) {
-            if (!Array.isArray(personas)) return;
-            localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
-            try {
-                db.collection('datos').doc('personas').set({ lista: personas });
-            } catch(e) {}
-        }
+    // Siempre intentar cargar de localStorage primero (se actualiza al sincronizar)
+    const guardado = localStorage.getItem('gestor_tc_personas');
+    if (guardado) {
+        try {
+            const parsed = JSON.parse(guardado);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch(e) {}
+    }
+    return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
+}
 
         function actualizarSelectsPersonas() {
             const personas = obtenerPersonas();
@@ -433,31 +427,37 @@
         }
         
         async function cargarDeNube() {
-            const badge = document.getElementById('syncBadge');
-            try {
-                const doc = await db.collection('datos').doc('principal').get();
-                if (doc.exists) {
-                    const data = doc.data();
-                    if (data.gastos && data.gastos.length > 0) {
-                        datos = { gastos: data.gastos, historicoFacturaciones: data.historicoFacturaciones, tema: data.tema || 'dark' };
-                        if (data.personas && Array.isArray(data.personas)) {
-                            localStorage.setItem('gestor_tc_personas', JSON.stringify(data.personas));
-                        }
-                        badge.textContent = '🟢 Sincronizado';
-                        badge.className = 'sync-badge';
-                        return true;
-                    }
+    const badge = document.getElementById('syncBadge');
+    try {
+        const doc = await db.collection('datos').doc('principal').get();
+        if (doc.exists) {
+            const data = doc.data();
+            if (data.gastos && data.gastos.length > 0) {
+                datos = { 
+                    gastos: data.gastos, 
+                    historicoFacturaciones: data.historicoFacturaciones || [], 
+                    tema: data.tema || 'dark' 
+                };
+                
+                // Cargar personas
+                if (data.personas && Array.isArray(data.personas)) {
+                    localStorage.setItem('gestor_tc_personas', JSON.stringify(data.personas));
                 }
-                badge.textContent = '💾 Local (nube vacía)';
-                badge.className = 'sync-badge local';
-                return false;
-            } catch(e) {
-                console.error('Error Firebase:', e);
-                badge.textContent = '🟡 Sin conexión';
-                badge.className = 'sync-badge local';
-                return false;
+                
+                badge.textContent = '🟢 Sincronizado';
+                badge.className = 'sync-badge';
+                return true;
             }
         }
+        badge.textContent = '💾 Local';
+        badge.className = 'sync-badge local';
+        return false;
+    } catch(e) {
+        badge.textContent = '🟡 Sin conexión';
+        badge.className = 'sync-badge local';
+        return false;
+    }
+}
         
         function guardarYSinc() {
             guardarDatosLocal();
@@ -780,15 +780,12 @@
 
         // ============ INICIO ============
         (async function() {
-            if (datos.tema === 'light') document.body.classList.add('light');
-            await cargarDeNube();
-            await actualizarSelectsPersonas();
-            if (datos.gastos.length === 0) {
-                await guardarEnNube();
-            }
-            renderizarTodo();
-            setInterval(alertaVencimiento, 3600000);
-    })();
+    if (datos.tema === 'light') document.body.classList.add('light');
+    await cargarDeNube();  // ← Esto carga personas al localStorage
+    actualizarSelectsPersonas();  // ← Esto lee del localStorage
+    renderizarTodo();
+    setInterval(alertaVencimiento, 3600000);
+})();
     </script>
 </body>
 </html>
