@@ -878,6 +878,15 @@ function mostrarToast(msg) {
         window.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); });
 
         // ============ INICIO ============
+      
+
+        function actualizarSelectsPersonas() {
+    const personas = obtenerPersonas();
+    const opciones = personas.map(p => `<option value="${p}">${p}</option>`).join('');
+    document.getElementById('filtroPersona').innerHTML = '<option value="todos">Todos</option>' + opciones;
+    document.getElementById('persona').innerHTML = opciones;
+}
+        
         (function() {
             if (datos.tema === 'light') document.body.classList.add('light');
             actualizarSelectsPersonas(); // ← Agrega esta línea
