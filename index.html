@@ -124,6 +124,7 @@
         <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -406,7 +407,11 @@
         async function guardarEnNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                await db.collection('datos').doc('principal').set(datos);
+                if (!firebase.auth().currentUser) {
+                    await firebase.auth().signInAnonymously();
+                }
+                const uid = firebase.auth().currentUser.uid;
+                await db.collection('datos').doc(uid).set(datos);
                 badge.textContent = '🟢 Sincronizado';
                 badge.className = 'sync-badge';
             } catch(e) {
@@ -419,14 +424,18 @@
         async function cargarDeNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                const doc = await db.collection('datos').doc('principal').get();
+                if (!firebase.auth().currentUser) {
+                    await firebase.auth().signInAnonymously();
+                }
+                const uid = firebase.auth().currentUser.uid;
+                const doc = await db.collection('datos').doc(uid).get();
                 if (doc.exists && doc.data().gastos && doc.data().gastos.length > 0) {
                     datos = doc.data();
                     badge.textContent = '🟢 Sincronizado';
                     badge.className = 'sync-badge';
                     return true;
                 }
-                badge.textContent = '💾 Local (nube vacía)';
+                badge.textContent = '💾 Local';
                 badge.className = 'sync-badge local';
                 return false;
             } catch(e) {
