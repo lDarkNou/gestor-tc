@@ -404,17 +404,35 @@
             const badge = document.getElementById('syncBadge');
             badge.textContent = '🔄 Conectando...';
             badge.className = 'sync-badge';
-
+        
             if (!USAR_SINCRONIZACION) {
                 badge.textContent = '💾 Datos locales';
                 badge.className = 'sync-badge local';
                 return;
             }
-
+        
             try {
-                const resp = await fetch(GOOGLE_SCRIPT_URL);
-                if (!resp.ok) throw new Error('Error de red');
-                const datosNube = await resp.json();
+                const datosNube = await new Promise((resolve, reject) => {
+                    const callback = 'jsonp_' + Date.now();
+                    window[callback] = function(data) {
+                        delete window[callback];
+                        resolve(data);
+                    };
+                    const script = document.createElement('script');
+                    script.src = GOOGLE_SCRIPT_URL + '?callback=' + callback;
+                    script.onerror = function() {
+                        delete window[callback];
+                        reject(new Error('Error de red'));
+                    };
+                    document.head.appendChild(script);
+                    setTimeout(() => {
+                        if (window[callback]) {
+                            delete window[callback];
+                            reject(new Error('Timeout'));
+                        }
+                    }, 10000);
+                });
+        
                 if (datosNube && datosNube.gastos && datosNube.gastos.length > 0) {
                     datos = datosNube;
                     badge.textContent = '🟢 Sincronizado';
@@ -428,6 +446,20 @@
                 console.error('Error sincronizando:', e);
                 badge.textContent = '🟡 Sin conexión - Datos locales';
                 badge.className = 'sync-badge local';
+            }
+        }
+        
+        async function guardarEnNube() {
+            if (!USAR_SINCRONIZACION) return;
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(datos),
+                });
+                document.getElementById('syncBadge').textContent = '🟢 Sincronizado';
+                document.getElementById('syncBadge').className = 'sync-badge';
+            } catch (e) {
+                console.error('Error guardando:', e);
             }
         }
 
