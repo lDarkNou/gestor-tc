@@ -351,6 +351,14 @@
             const p = document.getElementById('persona');
             if (p) p.innerHTML = opciones;
         }
+        function guardarPersonas(personas) {
+            if (!Array.isArray(personas)) return;
+            localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
+            // También guardar en Firebase
+            try {
+                db.collection('datos').doc('principal').update({ personas: personas });
+            } catch(e) {}
+        }
 
        function renderizarPersonas() {
             const personas = obtenerPersonas();
@@ -405,14 +413,7 @@
             document.body.appendChild(t);
             setTimeout(() => document.body.removeChild(t), 2500);
         }
-        function guardarPersonas(personas) {
-    if (!Array.isArray(personas)) return;
-    localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
-    // También guardar en Firebase
-    try {
-        db.collection('datos').doc('principal').update({ personas: personas });
-    } catch(e) {}
-}
+        
 
         // ============ SINCRONIZACIÓN ============
      // ============ SINCRONIZACIÓN FIREBASE ============
