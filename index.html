@@ -331,14 +331,30 @@
         }
 
         // ============ GESTIÓN DE PERSONAS ============
-        function obtenerPersonas() {
-            const g = localStorage.getItem('gestor_tc_personas');
-            if (g) { try { return JSON.parse(g); } catch(e) {} }
+        async function obtenerPersonas() {
+            // Intentar cargar de Firebase primero
+            try {
+                const doc = await db.collection('datos').doc('personas').get();
+                if (doc.exists && doc.data().lista) {
+                    localStorage.setItem('gestor_tc_personas', JSON.stringify(doc.data().lista));
+                    return doc.data().lista;
+                }
+            } catch(e) {}
+            
+            // Si no, cargar de localStorage
+            const guardado = localStorage.getItem('gestor_tc_personas');
+            if (guardado) {
+                try { return JSON.parse(guardado); } catch(e) {}
+            }
             return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3'];
         }
 
         function guardarPersonas(personas) {
             localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
+            // También guardar en Firebase
+            try {
+                db.collection('datos').doc('personas').set({ lista: personas });
+            } catch(e) {}
         }
 
         function actualizarSelectsPersonas() {
@@ -770,10 +786,11 @@
         // ============ INICIO ============
         (async function() {
             if (datos.tema === 'light') document.body.classList.add('light');
+            await cargarDeNube();
+            await obtenerPersonas(); // ← Agrega esta línea
             actualizarSelectsPersonas();
-            const cargado = await cargarDeNube();
-            if (!cargado) {
-                await guardarEnNube(); // Sube datos locales a la nube
+            if (datos.gastos.length === 0) {
+                await guardarEnNube();
             }
             renderizarTodo();
             setInterval(alertaVencimiento, 3600000);
