@@ -597,7 +597,8 @@ function personasDeCompra(g) {
                 const cm = cuotaMensual(g);
                 const todo = rest === 0;
                 return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
-                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personasDeCompra(g).join(', ')}</span>
+                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personasDeCompra(g).join(', ')}</span></div>
+<div class="gasto-monto-col"><div class="gasto-monto">
                     <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
                 </div>`;
             }).join('');
@@ -769,7 +770,7 @@ function personasDeCompra(g) {
             document.getElementById('montoPago').value = calcularMontoFacturado();
         });
 
-        ddocument.getElementById('formPago').addEventListener('submit', e => {
+        document.getElementById('formPago').addEventListener('submit', e => {
     e.preventDefault();
     const monto = parseInt(document.getElementById('montoPago').value);
     const montoFacturado = calcularMontoFacturado();
