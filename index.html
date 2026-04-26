@@ -203,7 +203,10 @@
         <div class="form-group"><label>Cuotas</label><input type="number" id="cuotas" value="1" min="1" max="36" required></div>
         <div class="form-group"><label>Primer cargo (fecha primer cobro)</label><input type="month" id="primerCargoMes"><small style="color:#888;font-size:0.7rem;">Mes/año del primer cobro real. Ej: dic-2025</small></div>
         <div class="form-group"><label>Valor de cada cuota $ (opcional, solo si tiene interés)</label><input type="number" id="valorCuota" placeholder="Se calcula automáticamente"><small style="color:#888;font-size:0.7rem;">Dejar vacío si es sin interés</small></div>
-        <div class="form-group"><label>¿Para quién?</label><select id="persona"></select></div>
+       <div class="form-group">
+    <label>¿Para quién? (puedes elegir varios)</label>
+    <div id="checkPersonas" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
+</div>
         <div class="form-group"><label>Facturación</label><select id="tipoFacturacion"><option value="antes">Este período</option><option value="despues">Próximo período</option></select></div>
         <button type="submit" class="btn-primary">💾 Guardar Compra</button>
     </form></div></div>
@@ -291,6 +294,23 @@
             return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3', 'Alonso'];
         }
 
+        function obtenerPersonasSeleccionadas() {
+    const checks = document.querySelectorAll('.check-persona:checked');
+    const seleccionadas = [];
+    checks.forEach(c => seleccionadas.push(c.value));
+    return seleccionadas.length > 0 ? seleccionadas : ['Titular'];
+}
+
+function cuotaMensualTotal(g) {
+    if (g.valorCuota && g.valorCuota > 0) return g.valorCuota;
+    return Math.round(g.montoTotal / g.cuotas);
+}
+
+function personasDeCompra(g) {
+    if (Array.isArray(g.persona)) return g.persona;
+    return [g.persona];
+}
+        
         function guardarPersonas(personas) {
             if (!Array.isArray(personas)) return;
             localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
@@ -306,6 +326,18 @@
             if (p) p.innerHTML = opciones;
         }
 
+        function renderizarCheckPersonas() {
+    const personas = obtenerPersonas();
+    const cont = document.getElementById('checkPersonas');
+    if (!cont) return;
+    cont.innerHTML = personas.map((p, i) => `
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;">
+            <input type="checkbox" value="${p}" class="check-persona" ${p === 'Titular' ? 'checked' : ''}>
+            ${p}
+        </label>
+    `).join('');
+}
+        
         function renderizarPersonas() {
             const personas = obtenerPersonas();
             const cont = document.getElementById('listaPersonas');
@@ -413,9 +445,10 @@
 
         // ============ FUNCIONES DE CÁLCULO ============
         function cuotaMensual(g) {
-            if (g.valorCuota && g.valorCuota > 0) return g.valorCuota;
-            return Math.round(g.montoTotal / g.cuotas);
-        }
+    const total = cuotaMensualTotal(g);
+    const personas = Array.isArray(g.persona) ? g.persona.length : 1;
+    return Math.round(total / personas);
+}
 
         function fechaPrimeraCuota(g) {
             if (g.primerCargo) {
@@ -702,6 +735,7 @@
         document.getElementById('btnNuevaCompra').addEventListener('click', () => {
             document.getElementById('modalCompra').style.display = 'block';
             document.getElementById('fechaCompra').valueAsDate = new Date();
+            renderizarCheckPersonas();
         });
 
         document.getElementById('formCompra').addEventListener('submit', e => {
@@ -714,7 +748,7 @@
                 cuotas: parseInt(document.getElementById('cuotas').value),
                 primerCargo: document.getElementById('primerCargoMes').value || '',
                 valorCuota: parseInt(document.getElementById('valorCuota').value) || 0,
-                persona: document.getElementById('persona').value,
+                persona: obtenerPersonasSeleccionadas(),
                 tipoFacturacion: document.getElementById('tipoFacturacion').value,
                 cuotasPagadas: [],
             };
