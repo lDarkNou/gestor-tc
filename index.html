@@ -717,23 +717,18 @@ function renderizarUltimosMovimientos() {
     const proximos = [];
     const yaAgregados = new Set();
     
-    datos.gastos.forEach(g => {
-        if (g.tipoFacturacion === 'despues') return;
-        
-        const fc = new Date(g.fecha + 'T00:00:00');
-        const esNueva = fc >= inicioProximo;
-        const tieneCuotaPendiente = cuotasRestantes(g) > 0;
-        const siguienteCuota = (g.cuotasPagadas?.length || 0) + 1;
-        
-        if (esNueva && !yaAgregados.has('nueva_' + g.id)) {
-            proximos.push({ ...g, tipo: 'nueva', cuotaPendiente: siguienteCuota });
-            yaAgregados.add('nueva_' + g.id);
-        } else if (tieneCuotaPendiente && !yaAgregados.has('cuota_' + g.id)) {
-            proximos.push({ ...g, tipo: 'cuota', cuotaPendiente: siguienteCuota });
-            yaAgregados.add('cuota_' + g.id);
-        }
-    });
+  datos.gastos.forEach(g => {
+    if (g.tipoFacturacion === 'despues') return;
     
+    const fc = new Date(g.fecha + 'T00:00:00');
+    const esNueva = fc >= inicioProximo;
+    
+    // SOLO compras NUEVAS (desde el 20/03)
+    if (esNueva && !yaAgregados.has('nueva_' + g.id)) {
+        proximos.push({ ...g, tipo: 'nueva' });
+        yaAgregados.add('nueva_' + g.id);
+    }
+});
     if (proximos.length === 0) {
         cont.innerHTML = '<div style="color:#888;text-align:center;font-size:0.8rem;">Sin movimientos para el próximo período</div>';
         return;
