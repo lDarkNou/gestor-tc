@@ -723,12 +723,13 @@ function renderizarUltimosMovimientos() {
         const fc = new Date(g.fecha + 'T00:00:00');
         const esNueva = fc >= inicioProximo;
         const tieneCuotaPendiente = cuotasRestantes(g) > 0;
+        const siguienteCuota = (g.cuotasPagadas?.length || 0) + 1;
         
         if (esNueva && !yaAgregados.has('nueva_' + g.id)) {
-            proximos.push({ ...g, tipo: 'nueva' });
+            proximos.push({ ...g, tipo: 'nueva', cuotaPendiente: siguienteCuota });
             yaAgregados.add('nueva_' + g.id);
         } else if (tieneCuotaPendiente && !yaAgregados.has('cuota_' + g.id)) {
-            proximos.push({ ...g, tipo: 'cuota', cuotaPendiente: (g.cuotasPagadas?.length || 0) + 1 });
+            proximos.push({ ...g, tipo: 'cuota', cuotaPendiente: siguienteCuota });
             yaAgregados.add('cuota_' + g.id);
         }
     });
