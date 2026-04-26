@@ -544,6 +544,39 @@ function cancelarEdicionPersonas(gastoId) {
             return { actual: totalesActual, proximo: totalesProximo };
         }
 
+        function editarNombreCompra(gastoId) {
+    const g = datos.gastos.find(x => x.id === gastoId);
+    if (!g) return;
+    
+    const container = document.getElementById('editNombre_' + gastoId);
+    container.innerHTML = `
+        <input type="text" id="inputNombre_${gastoId}" value="${g.descripcion}" style="width:100%;padding:6px 10px;background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;font-size:0.9rem;">
+        <div style="display:flex;gap:6px;margin-top:6px;">
+            <button onclick="guardarNombreCompra(${gastoId})" class="btn-primary btn-sm">💾 Guardar</button>
+            <button onclick="cancelarEdicionNombre(${gastoId})" class="btn-primary btn-sm" style="background:var(--accent2);">Cancelar</button>
+        </div>
+    `;
+    container.style.display = 'block';
+    document.getElementById('nombreCompra_' + gastoId).style.display = 'none';
+    document.getElementById('inputNombre_' + gastoId).focus();
+}
+
+function guardarNombreCompra(gastoId) {
+    const g = datos.gastos.find(x => x.id === gastoId);
+    if (!g) return;
+    const nuevoNombre = document.getElementById('inputNombre_' + gastoId).value.trim();
+    if (!nuevoNombre) { mostrarToast('⚠️ El nombre no puede estar vacío'); return; }
+    g.descripcion = nuevoNombre;
+    guardarYSinc();
+    verCuotas(gastoId);
+    mostrarToast('✅ Nombre actualizado');
+}
+
+function cancelarEdicionNombre(gastoId) {
+    document.getElementById('editNombre_' + gastoId).style.display = 'none';
+    document.getElementById('nombreCompra_' + gastoId).style.display = 'inline';
+}
+
         function actualizarFechasFacturacion() {
             let periodoActual = localStorage.getItem('periodo_actual');
             if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
@@ -694,7 +727,8 @@ function cancelarEdicionPersonas(gastoId) {
             const cmTotal = cuotaMensualTotal(g);
             const pagSet = new Set(g.cuotasPagadas || []);
             const fechaInicio = fechaPrimeraCuota(g);
-            let h = `<p><strong>${g.descripcion}</strong></p>
+            let h = `<p><strong id="nombreCompra_${g.id}" style="cursor:pointer;" onclick="editarNombreCompra(${g.id})">${g.descripcion}</strong> ✏️</p>
+<div id="editNombre_${g.id}" style="display:none;margin:4px 0;"></div>
                <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: 
     <span id="personasActual_${g.id}" style="cursor:pointer;text-decoration:underline;color:var(--accent);" onclick="editarPersonasCompra(${g.id})">
         <strong>${personasDeCompra(g).join(', ')}</strong> ✏️
