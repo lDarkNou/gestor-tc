@@ -113,6 +113,9 @@
         @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
         @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
         @media (max-width: 380px) { .montos-grid { grid-template-columns: 1fr 1fr; } .cuotas-grid { grid-template-columns: 1fr 1fr; } }
+        .check-personas-container { display: flex; flex-wrap: wrap; gap: 10px; padding: 8px 0; }
+        .check-personas-container label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; background: rgba(255,255,255,0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); }
+        .check-personas-container label:has(input:checked) { border-color: var(--accent); background: rgba(0,212,170,0.1); }
     </style>
 </head>
 <body>
@@ -152,7 +155,6 @@
             </div>
         </section>
 
-        <!-- RESUMEN POR PERSONA -->
         <section class="resumen-card" id="resumenPersonas">
             <h3 style="color:var(--accent);margin-bottom:8px;font-size:0.9rem;">👥 Totales por persona - Período actual</h3>
             <div id="totalesPersonas" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
@@ -192,10 +194,8 @@
         </section>
     </div>
 
-    <!-- MODAL PERSONAS -->
     <div id="modalPersonas" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>👥 Administrar Personas</h2><div id="listaPersonas"></div><hr style="border-color:var(--border);margin:12px 0"><div class="form-group"><label>Nueva persona:</label><div style="display:flex;gap:8px;"><input type="text" id="nuevaPersona" placeholder="Nombre" style="flex:1;"><button id="btnAgregarPersona" class="btn-primary btn-sm" style="width:auto;">➕ Agregar</button></div></div></div></div>
 
-    <!-- MODAL COMPRA -->
     <div id="modalCompra" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>🛒 Nueva Compra</h2><form id="formCompra">
         <div class="form-group"><label>Fecha</label><input type="date" id="fechaCompra" required></div>
         <div class="form-group"><label>Comercio</label><input type="text" id="descripcion" placeholder="Ej: Falabella.com" required></div>
@@ -203,18 +203,13 @@
         <div class="form-group"><label>Cuotas</label><input type="number" id="cuotas" value="1" min="1" max="36" required></div>
         <div class="form-group"><label>Primer cargo (fecha primer cobro)</label><input type="month" id="primerCargoMes"><small style="color:#888;font-size:0.7rem;">Mes/año del primer cobro real. Ej: dic-2025</small></div>
         <div class="form-group"><label>Valor de cada cuota $ (opcional, solo si tiene interés)</label><input type="number" id="valorCuota" placeholder="Se calcula automáticamente"><small style="color:#888;font-size:0.7rem;">Dejar vacío si es sin interés</small></div>
-       <div class="form-group">
-    <label>¿Para quién? (puedes elegir varios)</label>
-    <div id="checkPersonas" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
-</div>
+        <div class="form-group"><label>¿Para quién? (puedes elegir varios)</label><div id="checkPersonas" class="check-personas-container"></div></div>
         <div class="form-group"><label>Facturación</label><select id="tipoFacturacion"><option value="antes">Este período</option><option value="despues">Próximo período</option></select></div>
         <button type="submit" class="btn-primary">💾 Guardar Compra</button>
     </form></div></div>
 
-    <!-- MODAL CUOTAS -->
     <div id="modalCuotas" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>📅 Detalle de Cuotas</h2><div id="detalleCuotas"></div></div></div>
 
-    <!-- MODAL PAGO -->
     <div id="modalPago" class="modal"><div class="modal-content"><span class="close">&times;</span><h2>💵 Registrar Pago</h2><form id="formPago">
         <div class="form-group"><label>Monto Pagado</label><input type="number" id="montoPago" required></div>
         <div class="form-group"><label>Fecha de Pago</label><input type="date" id="fechaPagoInput" required></div>
@@ -226,7 +221,6 @@
     <input type="file" id="inputImportar" accept=".json" style="display:none;">
 
     <script>
-        // ============ CONFIGURACIÓN FIREBASE ============
         const firebaseConfig = {
             apiKey: "AIzaSyA5F2BbLININmowaIZs_EIyGLKIMM5USe0",
             authDomain: "gestor-tc.firebaseapp.com",
@@ -245,30 +239,29 @@
             tasas: { rotativo: 0.0279, cuotas: 0.0427, avances: 0.0427 },
         };
 
-        // ============ DATOS INICIALES ============
         const DATOS_INICIALES = {
             gastos: [
-                { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2025-12', valorCuota: 24772 },
-                { id: 2, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: 'Persona 1', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2025-12', valorCuota: 12482 },
-                { id: 3, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: 'Persona 2', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-01', valorCuota: 40399 },
-                { id: 4, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-02', valorCuota: 16962 },
-                { id: 5, fecha: '2026-01-09', descripcion: 'Hip Lider Copiapó', montoTotal: 121228, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-03', valorCuota: 44120 },
-                { id: 6, fecha: '2026-02-21', descripcion: 'Unimarc Caldera', montoTotal: 106250, cuotas: 3, persona: 'Alonso', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-04', valorCuota: 35416 },
-                { id: 7, fecha: '2026-02-21', descripcion: 'Corralero Plaza', montoTotal: 32079, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-04', valorCuota: 11550 },
-                { id: 8, fecha: '2026-03-19', descripcion: 'DI*Google Youtube', montoTotal: 790, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 9, fecha: '2026-03-21', descripcion: 'Unimarc Caldera I', montoTotal: 78074, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 10, fecha: '2026-03-23', descripcion: 'DI*Google Youtube', montoTotal: 5500, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 11, fecha: '2026-03-28', descripcion: 'Mp *Mercado Libre', montoTotal: 71800, cuotas: 6, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 12, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 27180, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 13, fecha: '2026-03-31', descripcion: 'Ebenezer Ltda', montoTotal: 40000, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 14, fecha: '2026-04-02', descripcion: 'Hiper Copiapó', montoTotal: 143424, cuotas: 3, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05', valorCuota: 51207 },
-                { id: 15, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-06' },
-                { id: 16, fecha: '2026-04-12', descripcion: 'Copiapó 3', montoTotal: 23980, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 17, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 18, fecha: '2026-04-17', descripcion: 'Seguro Desgravamen', montoTotal: 3116, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 19, fecha: '2026-04-17', descripcion: 'Seguro Cesantía', montoTotal: 4115, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 20, fecha: '2026-04-19', descripcion: 'Servicio Administración', montoTotal: 13990, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
-                { id: 21, fecha: '2026-04-19', descripcion: 'Impuesto 0,8% anual', montoTotal: 4284, cuotas: 1, persona: 'Titular', tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 1, fecha: '2025-10-08', descripcion: 'Falabella.com', montoTotal: 129990, cuotas: 6, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [0,1,2,3,4], primerCargo: '2025-12', valorCuota: 24772 },
+                { id: 2, fecha: '2025-10-08', descripcion: 'MercadoPago*Alipay', montoTotal: 65500, cuotas: 6, persona: ['Persona 1'], tipoFacturacion: 'antes', cuotasPagadas: [0,1,2,3,4], primerCargo: '2025-12', valorCuota: 12482 },
+                { id: 3, fecha: '2025-11-11', descripcion: 'Healthy Fitness School', montoTotal: 398800, cuotas: 12, persona: ['Persona 2'], tipoFacturacion: 'antes', cuotasPagadas: [0,1,2,3], primerCargo: '2026-01', valorCuota: 40399 },
+                { id: 4, fecha: '2026-01-07', descripcion: 'Mercado Libre', montoTotal: 101775, cuotas: 6, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [0,1,2], primerCargo: '2026-02', valorCuota: 16962 },
+                { id: 5, fecha: '2026-01-09', descripcion: 'Hip Lider Copiapó', montoTotal: 121228, cuotas: 3, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [0,1], primerCargo: '2026-03', valorCuota: 44120 },
+                { id: 6, fecha: '2026-02-21', descripcion: 'Unimarc Caldera', montoTotal: 106250, cuotas: 3, persona: ['Alonso'], tipoFacturacion: 'antes', cuotasPagadas: [0], primerCargo: '2026-04', valorCuota: 35416 },
+                { id: 7, fecha: '2026-02-21', descripcion: 'Corralero Plaza', montoTotal: 32079, cuotas: 3, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [0], primerCargo: '2026-04', valorCuota: 11550 },
+                { id: 8, fecha: '2026-03-19', descripcion: 'DI*Google Youtube', montoTotal: 790, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 9, fecha: '2026-03-21', descripcion: 'Unimarc Caldera I', montoTotal: 78074, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 10, fecha: '2026-03-23', descripcion: 'DI*Google Youtube', montoTotal: 5500, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 11, fecha: '2026-03-28', descripcion: 'Mp *Mercado Libre', montoTotal: 71800, cuotas: 6, persona: ['Alonso', 'Brenda'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 12, fecha: '2026-03-28', descripcion: 'Sodimac HC Copiapó', montoTotal: 27180, cuotas: 1, persona: ['Alonso', 'Brenda'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 13, fecha: '2026-03-31', descripcion: 'Ebenezer Ltda', montoTotal: 40000, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 14, fecha: '2026-04-02', descripcion: 'Hiper Copiapó', montoTotal: 143424, cuotas: 3, persona: ['Cecilia', 'Alonso', 'Brenda'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05', valorCuota: 51207 },
+                { id: 15, fecha: '2026-04-11', descripcion: 'Entel Ventas Equipos', montoTotal: 499990, cuotas: 24, persona: ['Titular'], tipoFacturacion: 'despues', cuotasPagadas: [], primerCargo: '2026-06' },
+                { id: 16, fecha: '2026-04-12', descripcion: 'Copiapó 3', montoTotal: 23980, cuotas: 1, persona: ['Brenda'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 17, fecha: '2026-04-13', descripcion: 'MercadoPago*Melimas', montoTotal: 2990, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 18, fecha: '2026-04-17', descripcion: 'Seguro Desgravamen', montoTotal: 3116, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 19, fecha: '2026-04-17', descripcion: 'Seguro Cesantía', montoTotal: 4115, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 20, fecha: '2026-04-19', descripcion: 'Servicio Administración', montoTotal: 13990, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
+                { id: 21, fecha: '2026-04-19', descripcion: 'Impuesto 0,8% anual', montoTotal: 4284, cuotas: 1, persona: ['Titular'], tipoFacturacion: 'antes', cuotasPagadas: [], primerCargo: '2026-05' },
             ],
             historicoFacturaciones: [
                 { periodo: '20/02 - 19/03/2026', monto: 371440, pagado: 371440, fechaPago: '2026-04-04' },
@@ -287,30 +280,12 @@
 
         function guardarDatosLocal() { try { localStorage.setItem('gestor_tc_v3', JSON.stringify(datos)); } catch(e) {} }
 
-        // ============ GESTIÓN DE PERSONAS ============
         function obtenerPersonas() {
             const g = localStorage.getItem('gestor_tc_personas');
             if (g) { try { return JSON.parse(g); } catch(e) {} }
-            return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3', 'Alonso'];
+            return ['Titular', 'Persona 1', 'Persona 2', 'Persona 3', 'Alonso', 'Brenda', 'Cecilia', 'En conjunto'];
         }
 
-        function obtenerPersonasSeleccionadas() {
-    const checks = document.querySelectorAll('.check-persona:checked');
-    const seleccionadas = [];
-    checks.forEach(c => seleccionadas.push(c.value));
-    return seleccionadas.length > 0 ? seleccionadas : ['Titular'];
-}
-
-function cuotaMensualTotal(g) {
-    if (g.valorCuota && g.valorCuota > 0) return g.valorCuota;
-    return Math.round(g.montoTotal / g.cuotas);
-}
-
-function personasDeCompra(g) {
-    if (Array.isArray(g.persona)) return g.persona;
-    return [g.persona];
-}
-        
         function guardarPersonas(personas) {
             if (!Array.isArray(personas)) return;
             localStorage.setItem('gestor_tc_personas', JSON.stringify(personas));
@@ -322,22 +297,43 @@ function personasDeCompra(g) {
             const opciones = personas.map(p => `<option value="${p}">${p}</option>`).join('');
             const fp = document.getElementById('filtroPersona');
             if (fp) fp.innerHTML = '<option value="todos">Todos</option>' + opciones;
-            const p = document.getElementById('persona');
-            if (p) p.innerHTML = opciones;
         }
 
         function renderizarCheckPersonas() {
-    const personas = obtenerPersonas();
-    const cont = document.getElementById('checkPersonas');
-    if (!cont) return;
-    cont.innerHTML = personas.map((p, i) => `
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;">
-            <input type="checkbox" value="${p}" class="check-persona" ${p === 'Titular' ? 'checked' : ''}>
-            ${p}
-        </label>
-    `).join('');
-}
-        
+            const personas = obtenerPersonas();
+            const cont = document.getElementById('checkPersonas');
+            if (!cont) return;
+            cont.innerHTML = personas.map(p => `
+                <label>
+                    <input type="checkbox" value="${p}" class="check-persona" ${p === 'Titular' ? 'checked' : ''}>
+                    ${p}
+                </label>
+            `).join('');
+        }
+
+        function obtenerPersonasSeleccionadas() {
+            const checks = document.querySelectorAll('.check-persona:checked');
+            const sel = [];
+            checks.forEach(c => sel.push(c.value));
+            return sel.length > 0 ? sel : ['Titular'];
+        }
+
+        function personasDeCompra(g) {
+            if (Array.isArray(g.persona)) return g.persona;
+            return [g.persona];
+        }
+
+        function cuotaMensualTotal(g) {
+            if (g.valorCuota && g.valorCuota > 0) return g.valorCuota;
+            return Math.round(g.montoTotal / g.cuotas);
+        }
+
+        function cuotaMensual(g) {
+            const total = cuotaMensualTotal(g);
+            const personas = personasDeCompra(g).length;
+            return Math.round(total / personas);
+        }
+
         function renderizarPersonas() {
             const personas = obtenerPersonas();
             const cont = document.getElementById('listaPersonas');
@@ -353,6 +349,7 @@ function personasDeCompra(g) {
                     personas[this.dataset.index] = this.value;
                     guardarPersonas(personas);
                     actualizarSelectsPersonas();
+                    renderizarCheckPersonas();
                 });
             });
         }
@@ -363,15 +360,18 @@ function personasDeCompra(g) {
             const eliminada = personas[index];
             personas.splice(index, 1);
             guardarPersonas(personas);
-            datos.gastos.forEach(g => { if (g.persona === eliminada) g.persona = 'Titular'; });
+            datos.gastos.forEach(g => {
+                if (Array.isArray(g.persona)) {
+                    g.persona = g.persona.filter(p => p !== eliminada);
+                    if (g.persona.length === 0) g.persona = ['Titular'];
+                } else if (g.persona === eliminada) {
+                    g.persona = ['Titular'];
+                }
+            });
             guardarYSinc();
             renderizarPersonas();
             actualizarSelectsPersonas();
-        }
-
-        function cambiarPersona(gastoId, nuevaPersona) {
-            const g = datos.gastos.find(x => x.id === gastoId);
-            if (g) { g.persona = nuevaPersona; guardarYSinc(); verCuotas(gastoId); }
+            renderizarCheckPersonas();
         }
 
         function cambiarValorCuota(gastoId, nuevoValor) {
@@ -409,11 +409,10 @@ function personasDeCompra(g) {
             document.body.appendChild(t); setTimeout(() => document.body.removeChild(t), 2500);
         }
 
-        // ============ SINCRONIZACIÓN FIREBASE ============
         async function guardarEnNube() {
             const badge = document.getElementById('syncBadge');
             try {
-                const personas = JSON.parse(localStorage.getItem('gestor_tc_personas') || '["Titular","Persona 1","Persona 2","Persona 3","Alonso"]');
+                const personas = JSON.parse(localStorage.getItem('gestor_tc_personas') || '["Titular"]');
                 const datosCompletos = { ...datos, personas: personas };
                 await db.collection('datos').doc('principal').set(datosCompletos);
                 badge.textContent = '🟢 Sincronizado';
@@ -443,13 +442,6 @@ function personasDeCompra(g) {
 
         function guardarYSinc() { guardarDatosLocal(); guardarEnNube(); renderizarTodo(); }
 
-        // ============ FUNCIONES DE CÁLCULO ============
-        function cuotaMensual(g) {
-    const total = cuotaMensualTotal(g);
-    const personas = Array.isArray(g.persona) ? g.persona.length : 1;
-    return Math.round(total / personas);
-}
-
         function fechaPrimeraCuota(g) {
             if (g.primerCargo) {
                 const [anio, mes] = g.primerCargo.split('-').map(Number);
@@ -469,50 +461,52 @@ function personasDeCompra(g) {
                     const d = new Date(ini); d.setMonth(d.getMonth() + i);
                     const k = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
                     if (!proy[k]) proy[k] = { total: 0, count: 0, detalles: [] };
-                    if (!pagSet.has(i)) { proy[k].total += cuotaMensual(g); proy[k].count++; }
-                    proy[k].detalles.push({ gastoId: g.id, desc: g.descripcion, persona: g.persona, cuota: i+1, total: g.cuotas, monto: cuotaMensual(g), pagada: pagSet.has(i) });
+                    if (!pagSet.has(i)) { proy[k].total += cuotaMensualTotal(g); proy[k].count++; }
+                    proy[k].detalles.push({ gastoId: g.id, desc: g.descripcion, persona: g.persona, cuota: i+1, total: g.cuotas, monto: cuotaMensualTotal(g), pagada: pagSet.has(i) });
                 }
             });
             return proy;
         }
 
-        function prepagoTotal() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
-        function cupoUtilizado() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensual(g), 0); }
+        function prepagoTotal() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensualTotal(g), 0); }
+        function cupoUtilizado() { return datos.gastos.reduce((a, g) => a + cuotasRestantes(g) * cuotaMensualTotal(g), 0); }
 
-    function calcularMontoFacturado() {
-    let total = 0;
-    datos.gastos.forEach(g => {
-        if (g.tipoFacturacion === 'despues') return;
-        if (g.cuotasPagadas && g.cuotasPagadas.length >= g.cuotas) return;
-        total += cuotaMensual(g);
-    });
-    return total;
-}
-      function calcularTotalesPorPersona() {
-    const totalesActual = {}, totalesProximo = {};
-    const personas = obtenerPersonas();
-    personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
-    
-    datos.gastos.forEach(g => {
-        if (g.tipoFacturacion === 'despues') return;
-        const cmPorPersona = cuotaMensual(g);
-        const personasCompra = personasDeCompra(g);
-        const pagadas = (g.cuotasPagadas || []).length;
-        
-        if (pagadas < g.cuotas) {
-            personasCompra.forEach(p => {
-                totalesActual[p] = (totalesActual[p] || 0) + cmPorPersona;
+        function calcularMontoFacturado() {
+            let total = 0;
+            datos.gastos.forEach(g => {
+                if (g.tipoFacturacion === 'despues') return;
+                if (g.cuotasPagadas && g.cuotasPagadas.length >= g.cuotas) return;
+                total += cuotaMensualTotal(g);
             });
+            return total;
         }
-        if (pagadas + 1 < g.cuotas) {
-            personasCompra.forEach(p => {
-                totalesProximo[p] = (totalesProximo[p] || 0) + cmPorPersona;
+
+        function calcularTotalesPorPersona() {
+            const totalesActual = {}, totalesProximo = {};
+            const personas = obtenerPersonas();
+            personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
+            
+            datos.gastos.forEach(g => {
+                if (g.tipoFacturacion === 'despues') return;
+                const cmPorPersona = cuotaMensual(g);
+                const personasCompra = personasDeCompra(g);
+                const pagadas = (g.cuotasPagadas || []).length;
+                
+                if (pagadas < g.cuotas) {
+                    personasCompra.forEach(p => {
+                        totalesActual[p] = (totalesActual[p] || 0) + cmPorPersona;
+                    });
+                }
+                if (pagadas + 1 < g.cuotas) {
+                    personasCompra.forEach(p => {
+                        totalesProximo[p] = (totalesProximo[p] || 0) + cmPorPersona;
+                    });
+                }
             });
+            
+            return { actual: totalesActual, proximo: totalesProximo };
         }
-    });
-    
-    return { actual: totalesActual, proximo: totalesProximo };
-}
+
         function actualizarFechasFacturacion() {
             let periodoActual = localStorage.getItem('periodo_actual');
             if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
@@ -520,18 +514,15 @@ function personasDeCompra(g) {
             const inicio = `20/${String(mes + 1).padStart(2,'0')}/${anio}`;
             const fin = `19/${String(mes + 2).padStart(2,'0')}/${anio}`;
             const limitePago = `05/${String(mes + 3).padStart(2,'0')}/${anio}`;
-            const pEl = document.getElementById('periodoFacturacion');
-            const lEl = document.getElementById('fechaLimitePago');
-            if (pEl) pEl.textContent = inicio + ' - ' + fin;
-            if (lEl) lEl.textContent = limitePago;
+            document.getElementById('periodoFacturacion').textContent = inicio + ' - ' + fin;
+            document.getElementById('fechaLimitePago').textContent = limitePago;
         }
 
         function avanzarPeriodo() {
             let periodoActual = localStorage.getItem('periodo_actual');
             if (!periodoActual) return;
             const [anio, mes] = periodoActual.split('-').map(Number);
-            const nuevoPeriodo = `${anio}-${mes + 1}-20`;
-            localStorage.setItem('periodo_actual', nuevoPeriodo);
+            localStorage.setItem('periodo_actual', `${anio}-${mes + 1}-20`);
         }
 
         function renderizarTodo() {
@@ -565,8 +556,8 @@ function personasDeCompra(g) {
             const diff = fechaLimite.getTime() - hoy.getTime();
             const dias = Math.ceil(diff / 86400000);
             if (dias < 0) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡VENCIDO! Tu pago venció hace ' + Math.abs(dias) + ' días'; }
-            else if (dias <= 3) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡Urgente! Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')'; }
-            else if (dias <= 7) { a.className = 'alerta-vencimiento amarilla'; a.innerHTML = '⚠️ Pago en ' + dias + ' días (' + fechaLimite.toLocaleDateString('es-CL') + ')'; }
+            else if (dias <= 3) { a.className = 'alerta-vencimiento'; a.innerHTML = '🔴 ¡Urgente! Pago en ' + dias + ' días'; }
+            else if (dias <= 7) { a.className = 'alerta-vencimiento amarilla'; a.innerHTML = '⚠️ Pago en ' + dias + ' días'; }
             else { a.className = 'alerta-vencimiento hidden'; }
         }
 
@@ -585,7 +576,12 @@ function personasDeCompra(g) {
             const fm = document.getElementById('filtroMes').value;
             const fe = document.getElementById('filtroEstado').value;
             let lista = [...datos.gastos];
-            if (fp !== 'todos') lista = lista.filter(g => g.persona === fp);
+            if (fp !== 'todos') {
+                lista = lista.filter(g => {
+                    const personas = personasDeCompra(g);
+                    return personas.includes(fp);
+                });
+            }
             if (fm) { const [y, m] = fm.split('-'); lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; }); }
             if (fe === 'pendientes') lista = lista.filter(g => cuotasRestantes(g) > 0);
             else if (fe === 'pagados') lista = lista.filter(g => cuotasRestantes(g) === 0);
@@ -596,9 +592,11 @@ function personasDeCompra(g) {
                 const pag = g.cuotasPagadas ? g.cuotasPagadas.length : 0;
                 const cm = cuotaMensual(g);
                 const todo = rest === 0;
+                const personaMostrar = Array.isArray(g.persona) ? g.persona[0] : g.persona;
+                const personasCount = Array.isArray(g.persona) ? g.persona.length : 1;
+                const personaStr = personasCount > 1 ? personaMostrar + ' +' + (personasCount - 1) : personaMostrar;
                 return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
-                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personasDeCompra(g).join(', ')}</span></div>
-<div class="gasto-monto-col"><div class="gasto-monto">
+                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personaStr}</span></div></div>
                     <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
                 </div>`;
             }).join('');
@@ -656,22 +654,21 @@ function personasDeCompra(g) {
             const g = datos.gastos.find(x => x.id === id);
             if (!g) return;
             const cm = cuotaMensual(g);
+            const cmTotal = cuotaMensualTotal(g);
             const pagSet = new Set(g.cuotasPagadas || []);
-            const personas = obtenerPersonas();
-            const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
             const fechaInicio = fechaPrimeraCuota(g);
             let h = `<p><strong>${g.descripcion}</strong></p>
                 <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: <strong>${personasDeCompra(g).join(', ')}</strong></p>
-<p style="font-size:0.75rem;color:#888;">💵 ${cuotaMensual(g).toLocaleString('es-CL')} por persona</p> 
-<p style="font-size:0.75rem;color:var(--accent);">💰 Total compra: $${cuotaMensualTotal(g).toLocaleString('es-CL')} (entre ${personasDeCompra(g).length} persona(s))</p>
+                <p style="font-size:0.75rem;color:#888;">💵 ${cm.toLocaleString('es-CL')} por persona</p>
+                <p style="font-size:0.75rem;color:var(--accent);">💰 Total compra: $${cmTotal.toLocaleString('es-CL')} (entre ${personasDeCompra(g).length} persona(s))</p>
                 <p style="font-size:0.8rem;margin:4px 0;">📅 Primer cargo: <input type="month" id="editPC_${g.id}" value="${g.primerCargo || ''}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;" onchange="cambiarPrimerCargo(${g.id}, this.value)"></p>
-                <p>$${g.montoTotal.toLocaleString('es-CL')} en <input type="number" id="editCuotas_${g.id}" value="${g.cuotas}" min="1" max="36" style="background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;width:60px;font-size:0.85rem;display:inline-block;text-align:center;" onchange="cambiarCuotas(${g.id}, this.value)"> cuotas de $${cm.toLocaleString('es-CL')}</p>
-                <p style="font-size:0.8rem;margin:4px 0;">💰 Valor cuota: $<input type="number" id="editVC_${g.id}" value="${g.valorCuota || cm}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:100px;font-size:0.8rem;" onchange="cambiarValorCuota(${g.id}, this.value)"> ${g.valorCuota > 0 ? '<span style="color:var(--accent2);">(con interés)</span>' : '<span style="color:var(--accent);">(sin interés)</span>'}</p>
+                <p>$${g.montoTotal.toLocaleString('es-CL')} en <input type="number" id="editCuotas_${g.id}" value="${g.cuotas}" min="1" max="36" style="background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;width:60px;font-size:0.85rem;display:inline-block;text-align:center;" onchange="cambiarCuotas(${g.id}, this.value)"> cuotas de $${cmTotal.toLocaleString('es-CL')}</p>
+                <p style="font-size:0.8rem;margin:4px 0;">💰 Valor cuota: $<input type="number" id="editVC_${g.id}" value="${g.valorCuota || cmTotal}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:100px;font-size:0.8rem;" onchange="cambiarValorCuota(${g.id}, this.value)"> ${g.valorCuota > 0 ? '<span style="color:var(--accent2);">(con interés)</span>' : '<span style="color:var(--accent);">(sin interés)</span>'}</p>
                 <p style="font-size:0.75rem;color:var(--accent2);cursor:pointer;margin:4px 0;" onclick="eliminarCompra(${g.id})">🗑️ Eliminar esta compra</p>
                 <hr style="border-color:var(--border);margin:10px 0">`;
             for (let i = 0; i < g.cuotas; i++) {
                 const fc = new Date(fechaInicio); fc.setMonth(fc.getMonth() + i);
-                h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cm.toLocaleString('es-CL')}</span></div>`;
+                h += `<div class="cuota-check-row"><label style="cursor:pointer;${pagSet.has(i)?'color:var(--accent);text-decoration:line-through':''}"><input type="checkbox" ${pagSet.has(i)?'checked':''} onchange="toggleCuota(${g.id},${i},this.checked)">Cuota ${i+1}/${g.cuotas} - ${fc.toLocaleDateString('es-CL',{month:'short',year:'numeric'})}</label><span>$${cmTotal.toLocaleString('es-CL')}</span></div>`;
             }
             h += `<hr style="border-color:var(--border);margin:10px 0"><button onclick="todasCuotas(${g.id})" class="btn-primary btn-sm">✅ Todas</button> <button onclick="ningunaCuota(${g.id})" class="btn-primary btn-sm" style="background:var(--accent2)">❌ Ninguna</button>`;
             document.getElementById('detalleCuotas').innerHTML = h;
@@ -736,7 +733,6 @@ function personasDeCompra(g) {
             reader.readAsText(file); e.target.value = '';
         }
 
-        // ============ EVENTOS ============
         document.getElementById('btnNuevaCompra').addEventListener('click', () => {
             document.getElementById('modalCompra').style.display = 'block';
             document.getElementById('fechaCompra').valueAsDate = new Date();
@@ -771,30 +767,27 @@ function personasDeCompra(g) {
         });
 
         document.getElementById('formPago').addEventListener('submit', e => {
-    e.preventDefault();
-    const monto = parseInt(document.getElementById('montoPago').value);
-    const montoFacturado = calcularMontoFacturado();
-    
-    if (monto >= montoFacturado) {
-        // Marcar todas las cuotas actuales como pagadas
-        datos.gastos.forEach(g => {
-            if (g.tipoFacturacion === 'despues') return;
-            if (g.cuotasPagadas && g.cuotasPagadas.length < g.cuotas) {
-                g.cuotasPagadas.push(g.cuotasPagadas.length);
+            e.preventDefault();
+            const monto = parseInt(document.getElementById('montoPago').value);
+            const montoFacturado = calcularMontoFacturado();
+            
+            if (monto >= montoFacturado) {
+                datos.gastos.forEach(g => {
+                    if (g.tipoFacturacion === 'despues') return;
+                    if (g.cuotasPagadas && g.cuotasPagadas.length < g.cuotas) {
+                        g.cuotasPagadas.push(g.cuotasPagadas.length);
+                    }
+                });
+                avanzarPeriodo();
+                mostrarToast('✅ Pago total. Período avanzado.');
+            } else {
+                mostrarToast('💵 Pago parcial registrado.');
             }
+            
+            guardarYSinc();
+            document.getElementById('modalPago').style.display = 'none';
+            document.getElementById('formPago').reset();
         });
-        
-        // Avanzar período
-        avanzarPeriodo();
-        mostrarToast('✅ Pago total. Período avanzado.');
-    } else {
-        mostrarToast('💵 Pago parcial registrado.');
-    }
-    
-    guardarYSinc();
-    document.getElementById('modalPago').style.display = 'none';
-    document.getElementById('formPago').reset();
-});
 
         document.getElementById('tipoPago').addEventListener('change', function() {
             const inp = document.getElementById('montoPago');
@@ -837,6 +830,7 @@ function personasDeCompra(g) {
             document.getElementById('nuevaPersona').value = '';
             renderizarPersonas();
             actualizarSelectsPersonas();
+            renderizarCheckPersonas();
             mostrarToast('✅ Agregada');
         });
 
@@ -865,7 +859,6 @@ function personasDeCompra(g) {
         window.addEventListener('click', e => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; });
         window.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); });
 
-        // ============ INICIO ============
         (async function() {
             if (datos.tema === 'light') document.body.classList.add('light');
             await cargarDeNube();
