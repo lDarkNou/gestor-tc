@@ -488,24 +488,26 @@ function personasDeCompra(g) {
     });
     return total;
 }
-       function calcularTotalesPorPersona() {
+      function calcularTotalesPorPersona() {
     const totalesActual = {}, totalesProximo = {};
     const personas = obtenerPersonas();
     personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
     
     datos.gastos.forEach(g => {
         if (g.tipoFacturacion === 'despues') return;
-        const cm = cuotaMensual(g);
+        const cmPorPersona = cuotaMensual(g);
+        const personasCompra = personasDeCompra(g);
         const pagadas = (g.cuotasPagadas || []).length;
         
-        // Si no está completamente pagada, se suma al período actual
         if (pagadas < g.cuotas) {
-            totalesActual[g.persona] = (totalesActual[g.persona] || 0) + cm;
+            personasCompra.forEach(p => {
+                totalesActual[p] = (totalesActual[p] || 0) + cmPorPersona;
+            });
         }
-        
-        // Si le quedan más cuotas después de esta, suma al próximo período
         if (pagadas + 1 < g.cuotas) {
-            totalesProximo[g.persona] = (totalesProximo[g.persona] || 0) + cm;
+            personasCompra.forEach(p => {
+                totalesProximo[p] = (totalesProximo[p] || 0) + cmPorPersona;
+            });
         }
     });
     
@@ -595,7 +597,7 @@ function personasDeCompra(g) {
                 const cm = cuotaMensual(g);
                 const todo = rest === 0;
                 return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
-                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${g.persona}</span></div></div>
+                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personasDeCompra(g).join(', ')}</span>
                     <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
                 </div>`;
             }).join('');
@@ -658,7 +660,9 @@ function personasDeCompra(g) {
             const opcionesPersonas = personas.map(p => `<option value="${p}" ${p === g.persona ? 'selected' : ''}>${p}</option>`).join('');
             const fechaInicio = fechaPrimeraCuota(g);
             let h = `<p><strong>${g.descripcion}</strong></p>
-                <p style="font-size:0.85rem;margin:6px 0;">👤 Persona: <select onchange="cambiarPersona(${g.id}, this.value)" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:0.8rem;">${opcionesPersonas}</select></p>
+                <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: <strong>${personasDeCompra(g).join(', ')}</strong></p>
+<p style="font-size:0.75rem;color:#888;">💵 ${cuotaMensual(g).toLocaleString('es-CL')} por persona</p> 
+<p style="font-size:0.75rem;color:var(--accent);">💰 Total compra: $${cuotaMensualTotal(g).toLocaleString('es-CL')} (entre ${personasDeCompra(g).length} persona(s))</p>
                 <p style="font-size:0.8rem;margin:4px 0;">📅 Primer cargo: <input type="month" id="editPC_${g.id}" value="${g.primerCargo || ''}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;" onchange="cambiarPrimerCargo(${g.id}, this.value)"></p>
                 <p>$${g.montoTotal.toLocaleString('es-CL')} en <input type="number" id="editCuotas_${g.id}" value="${g.cuotas}" min="1" max="36" style="background:var(--bg);color:var(--text);border:1px solid var(--accent);border-radius:6px;padding:4px 6px;width:60px;font-size:0.85rem;display:inline-block;text-align:center;" onchange="cambiarCuotas(${g.id}, this.value)"> cuotas de $${cm.toLocaleString('es-CL')}</p>
                 <p style="font-size:0.8rem;margin:4px 0;">💰 Valor cuota: $<input type="number" id="editVC_${g.id}" value="${g.valorCuota || cm}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 8px;width:100px;font-size:0.8rem;" onchange="cambiarValorCuota(${g.id}, this.value)"> ${g.valorCuota > 0 ? '<span style="color:var(--accent2);">(con interés)</span>' : '<span style="color:var(--accent);">(sin interés)</span>'}</p>
