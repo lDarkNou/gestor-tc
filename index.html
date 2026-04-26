@@ -518,7 +518,7 @@ function cancelarEdicionPersonas(gastoId) {
             return total;
         }
 
-      function calcularTotalesPorPersona() {
+     function calcularTotalesPorPersona() {
     const totalesActual = {}, totalesProximo = {};
     const personas = obtenerPersonas();
     personas.forEach(p => { totalesActual[p] = 0; totalesProximo[p] = 0; });
@@ -535,23 +535,22 @@ function cancelarEdicionPersonas(gastoId) {
         const pagadas = (g.cuotasPagadas || []).length;
         const fechaCompra = new Date(g.fecha + 'T00:00:00');
         
-        // ¿La compra es de este período o del próximo?
+        // ¿La compra es del próximo período?
         const esDelProximoPeriodo = fechaCompra >= inicioPeriodoActual;
         
         if (esDelProximoPeriodo) {
-            // Va al PRÓXIMO período
+            // Compras NUEVAS → solo al PRÓXIMO período
             personasCompra.forEach(p => {
                 totalesProximo[p] = (totalesProximo[p] || 0) + cmPorPersona;
             });
         } else {
-            // PERÍODO ACTUAL (si tiene cuotas pendientes)
+            // Compras FACTURADAS → actual y/o próximo según cuotas pendientes
             if (pagadas < g.cuotas) {
+                // Tiene cuotas pendientes → ACTUAL
                 personasCompra.forEach(p => {
                     totalesActual[p] = (totalesActual[p] || 0) + cmPorPersona;
                 });
-            }
-            // PRÓXIMO (si quedan cuotas después de esta)
-            if (pagadas + 1 < g.cuotas) {
+                // También PRÓXIMO (siempre que tenga cuotas pendientes)
                 personasCompra.forEach(p => {
                     totalesProximo[p] = (totalesProximo[p] || 0) + cmPorPersona;
                 });
