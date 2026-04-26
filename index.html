@@ -808,27 +808,31 @@ function cancelarEdicionPersonas(gastoId) {
         });
 
         document.getElementById('formPago').addEventListener('submit', e => {
-            e.preventDefault();
-            const monto = parseInt(document.getElementById('montoPago').value);
-            const montoFacturado = calcularMontoFacturado();
-            
-            if (monto >= montoFacturado) {
-                datos.gastos.forEach(g => {
-                    if (g.tipoFacturacion === 'despues') return;
-                    if (g.cuotasPagadas && g.cuotasPagadas.length < g.cuotas) {
-                        g.cuotasPagadas.push(g.cuotasPagadas.length);
-                    }
-                });
-                avanzarPeriodo();
-                mostrarToast('✅ Pago total. Período avanzado.');
-            } else {
-                mostrarToast('💵 Pago parcial registrado.');
+    e.preventDefault();
+    const monto = parseInt(document.getElementById('montoPago').value);
+    const montoFacturado = calcularMontoFacturado();
+    
+    if (monto >= montoFacturado) {
+        // Pago total: marcar una cuota de cada compra activa como pagada
+        datos.gastos.forEach(g => {
+            if (g.tipoFacturacion === 'despues') return;
+            if (g.cuotasPagadas && g.cuotasPagadas.length < g.cuotas) {
+                g.cuotasPagadas.push(g.cuotasPagadas.length);
             }
-            
-            guardarYSinc();
-            document.getElementById('modalPago').style.display = 'none';
-            document.getElementById('formPago').reset();
         });
+        avanzarPeriodo();
+        mostrarToast('✅ Pago total. Período avanzado.');
+    } else if (monto >= Math.round(montoFacturado * 0.17)) {
+        // Pago mínimo: no avanza período, solo registra
+        mostrarToast('💵 Pago mínimo registrado. El saldo sigue pendiente.');
+    } else {
+        mostrarToast('⚠️ Monto menor al pago mínimo.');
+    }
+    
+    guardarYSinc();
+    document.getElementById('modalPago').style.display = 'none';
+    document.getElementById('formPago').reset();
+});
 
         document.getElementById('tipoPago').addEventListener('change', function() {
             const inp = document.getElementById('montoPago');
