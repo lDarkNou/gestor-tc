@@ -615,43 +615,48 @@ function cancelarEdicionPersonas(gastoId) {
                 case 'historico': renderizarHistorico(); break;
             }
         }
-
-       function renderizarGastos() {
+function renderizarGastos() {
     const fp = document.getElementById('filtroPersona').value;
     const fm = document.getElementById('filtroMes').value;
     const fe = document.getElementById('filtroEstado').value;
     
-    // SOLO movimientos facturados (dentro del período actual)
     let periodoActual = localStorage.getItem('periodo_actual');
-    if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
+    if (!periodoActual) { periodoActual = '2026-2-20'; }
     const [anioIni, mesIni] = periodoActual.split('-').map(Number);
     const inicioPeriodo = new Date(anioIni, mesIni, 20);
     
     let lista = datos.gastos.filter(g => {
         const fc = new Date(g.fecha + 'T00:00:00');
-        return fc < inicioPeriodo; // Solo compras ANTES del período actual (ya facturadas)
+        return fc < inicioPeriodo;
     });
     
-    // ... el resto del filtro sigue igual ...
-            if (fm) { const [y, m] = fm.split('-'); lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; }); }
-            if (fe === 'pendientes') lista = lista.filter(g => cuotasRestantes(g) > 0);
-            else if (fe === 'pagados') lista = lista.filter(g => cuotasRestantes(g) === 0);
-            const cont = document.getElementById('listaGastos');
-            if (lista.length === 0) { cont.innerHTML = '<div class="empty-state">📭 Sin resultados</div>'; return; }
-            cont.innerHTML = lista.sort((a,b) => new Date(b.fecha+'T00:00:00') - new Date(a.fecha+'T00:00:00')).map(g => {
-                const rest = cuotasRestantes(g);
-                const pag = g.cuotasPagadas ? g.cuotasPagadas.length : 0;
-                const cm = cuotaMensual(g);
-                const todo = rest === 0;
-                const personaMostrar = Array.isArray(g.persona) ? g.persona[0] : g.persona;
-                const personasCount = Array.isArray(g.persona) ? g.persona.length : 1;
-                const personaStr = personasCount > 1 ? personaMostrar + ' +' + (personasCount - 1) : personaMostrar;
-                return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
-                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personaStr}</span></div></div>
-                    <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
-                </div>`;
-            }).join('');
-        }
+    if (fp !== 'todos') {
+        lista = lista.filter(g => {
+            const personas = personasDeCompra(g);
+            return personas.includes(fp);
+        });
+    }
+    if (fm) { const [y, m] = fm.split('-'); lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; }); }
+    if (fe === 'pendientes') lista = lista.filter(g => cuotasRestantes(g) > 0);
+    else if (fe === 'pagados') lista = lista.filter(g => cuotasRestantes(g) === 0);
+    
+    const cont = document.getElementById('listaGastos');
+    if (lista.length === 0) { cont.innerHTML = '<div class="empty-state">📭 Sin resultados</div>'; return; }
+    
+    cont.innerHTML = lista.sort((a,b) => new Date(b.fecha+'T00:00:00') - new Date(a.fecha+'T00:00:00')).map(g => {
+        const rest = cuotasRestantes(g);
+        const pag = g.cuotasPagadas ? g.cuotasPagadas.length : 0;
+        const cm = cuotaMensual(g);
+        const todo = rest === 0;
+        const personaMostrar = Array.isArray(g.persona) ? g.persona[0] : g.persona;
+        const personasCount = Array.isArray(g.persona) ? g.persona.length : 1;
+        const personaStr = personasCount > 1 ? personaMostrar + ' +' + (personasCount - 1) : personaMostrar;
+        return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
+            <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personaStr}</span></div></div>
+            <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
+        </div>`;
+    }).join('');
+}
 
         function renderizarCuotas() {
             const proy = proyeccionCuotas();
@@ -707,26 +712,41 @@ function renderizarUltimosMovimientos() {
     let periodoActual = localStorage.getItem('periodo_actual');
     if (!periodoActual) { periodoActual = '2026-2-20'; localStorage.setItem('periodo_actual', periodoActual); }
     const [anioIni, mesIni] = periodoActual.split('-').map(Number);
-    const inicioPeriodo = new Date(anioIni, mesIni, 20);
+    const inicioProximo = new Date(anioIni, mesIni, 20);
     
-    const noFacturados = datos.gastos.filter(g => {
+    const proximos = [];
+    const yaAgregados = new Set();
+    
+    datos.gastos.forEach(g => {
+        if (g.tipoFacturacion === 'despues') return;
+        
         const fc = new Date(g.fecha + 'T00:00:00');
-        return fc >= inicioPeriodo && g.tipoFacturacion !== 'despues';
+        const esNueva = fc >= inicioProximo;
+        const tieneCuotaPendiente = cuotasRestantes(g) > 0;
+        
+        if (esNueva && !yaAgregados.has('nueva_' + g.id)) {
+            proximos.push({ ...g, tipo: 'nueva' });
+            yaAgregados.add('nueva_' + g.id);
+        } else if (tieneCuotaPendiente && !yaAgregados.has('cuota_' + g.id)) {
+            proximos.push({ ...g, tipo: 'cuota', cuotaPendiente: (g.cuotasPagadas?.length || 0) + 1 });
+            yaAgregados.add('cuota_' + g.id);
+        }
     });
     
-    if (noFacturados.length === 0) {
-        cont.innerHTML = '<div style="color:#888;text-align:center;font-size:0.8rem;">Sin movimientos nuevos</div>';
+    if (proximos.length === 0) {
+        cont.innerHTML = '<div style="color:#888;text-align:center;font-size:0.8rem;">Sin movimientos para el próximo período</div>';
         return;
     }
     
-    cont.innerHTML = noFacturados.sort((a,b) => new Date(b.fecha+'T00:00:00') - new Date(a.fecha+'T00:00:00')).map(g => {
+    cont.innerHTML = proximos.map(g => {
         const cm = cuotaMensual(g);
         const personaMostrar = Array.isArray(g.persona) ? g.persona[0] : g.persona;
         const personasCount = Array.isArray(g.persona) ? g.persona.length : 1;
         const personaStr = personasCount > 1 ? personaMostrar + ' +' + (personasCount - 1) : personaMostrar;
+        const etiqueta = g.tipo === 'nueva' ? '🆕' : '🔄 Cuota ' + g.cuotaPendiente + '/' + g.cuotas;
         return `<div class="gasto-row" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--warning);">
-            <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personaStr}</span></div></div>
-            <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas pendiente">🆕</div></div>
+            <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${g.tipo === 'nueva' ? formatoFecha(g.fecha) : 'Próxima cuota'} <span class="gasto-persona">${personaStr}</span></div></div>
+            <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas pendiente">${etiqueta}</div></div>
         </div>`;
     }).join('');
 }
