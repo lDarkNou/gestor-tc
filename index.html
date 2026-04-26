@@ -373,6 +373,42 @@
             actualizarSelectsPersonas();
             renderizarCheckPersonas();
         }
+        function editarPersonasCompra(gastoId) {
+    const g = datos.gastos.find(x => x.id === gastoId);
+    if (!g) return;
+    const container = document.getElementById('editPersonas_' + gastoId);
+    const personas = obtenerPersonas();
+    const actuales = personasDeCompra(g);
+    container.innerHTML = personas.map(p => `
+        <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:0.85rem;">
+            <input type="checkbox" value="${p}" class="edit-check-persona" ${actuales.includes(p) ? 'checked' : ''}>
+            ${p}
+        </label>
+    `).join('') + `
+        <button onclick="guardarPersonasCompra(${gastoId})" class="btn-primary btn-sm" style="margin-top:8px;">💾 Guardar</button>
+        <button onclick="cancelarEdicionPersonas(${gastoId})" class="btn-primary btn-sm" style="background:var(--accent2);margin-top:8px;">Cancelar</button>
+    `;
+    container.style.display = 'block';
+    document.getElementById('personasActual_' + gastoId).style.display = 'none';
+}
+
+function guardarPersonasCompra(gastoId) {
+    const g = datos.gastos.find(x => x.id === gastoId);
+    if (!g) return;
+    const checks = document.querySelectorAll('#editPersonas_' + gastoId + ' .edit-check-persona:checked');
+    const nuevasPersonas = [];
+    checks.forEach(c => nuevasPersonas.push(c.value));
+    if (nuevasPersonas.length === 0) { mostrarToast('⚠️ Debe haber al menos una persona'); return; }
+    g.persona = nuevasPersonas;
+    guardarYSinc();
+    verCuotas(gastoId);
+    mostrarToast('✅ Personas actualizadas');
+}
+
+function cancelarEdicionPersonas(gastoId) {
+    document.getElementById('editPersonas_' + gastoId).style.display = 'none';
+    document.getElementById('personasActual_' + gastoId).style.display = 'inline';
+}
 
         function cambiarValorCuota(gastoId, nuevoValor) {
             const g = datos.gastos.find(x => x.id === gastoId);
@@ -658,7 +694,12 @@
             const pagSet = new Set(g.cuotasPagadas || []);
             const fechaInicio = fechaPrimeraCuota(g);
             let h = `<p><strong>${g.descripcion}</strong></p>
-                <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: <strong>${personasDeCompra(g).join(', ')}</strong></p>
+                <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: 
+    <span id="personasActual_${g.id}" style="cursor:pointer;text-decoration:underline;color:var(--accent);" onclick="editarPersonasCompra(${g.id})">
+        <strong>${personasDeCompra(g).join(', ')}</strong> ✏️
+    </span>
+</p>
+<div id="editPersonas_${g.id}" style="display:none;margin:6px 0;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"></div>
                 <p style="font-size:0.75rem;color:#888;">💵 ${cm.toLocaleString('es-CL')} por persona</p>
                 <p style="font-size:0.75rem;color:var(--accent);">💰 Total compra: $${cmTotal.toLocaleString('es-CL')} (entre ${personasDeCompra(g).length} persona(s))</p>
                 <p style="font-size:0.8rem;margin:4px 0;">📅 Primer cargo: <input type="month" id="editPC_${g.id}" value="${g.primerCargo || ''}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;" onchange="cambiarPrimerCargo(${g.id}, this.value)"></p>
