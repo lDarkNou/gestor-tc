@@ -159,8 +159,6 @@
             <h3 style="color:var(--accent);margin-bottom:8px;font-size:0.9rem;">👥 Totales por persona - Período actual</h3>
             <div id="totalesPersonas" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
         </section>
-</section> 
-
 
         <section class="filtros">
             <div class="filtro-grupo"><label>👤</label><select id="filtroPersona"><option value="todos">Todos</option></select></div>
@@ -375,42 +373,6 @@
             actualizarSelectsPersonas();
             renderizarCheckPersonas();
         }
-        function editarPersonasCompra(gastoId) {
-    const g = datos.gastos.find(x => x.id === gastoId);
-    if (!g) return;
-    const container = document.getElementById('editPersonas_' + gastoId);
-    const personas = obtenerPersonas();
-    const actuales = personasDeCompra(g);
-    container.innerHTML = personas.map(p => `
-        <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:0.85rem;">
-            <input type="checkbox" value="${p}" class="edit-check-persona" ${actuales.includes(p) ? 'checked' : ''}>
-            ${p}
-        </label>
-    `).join('') + `
-        <button onclick="guardarPersonasCompra(${gastoId})" class="btn-primary btn-sm" style="margin-top:8px;">💾 Guardar</button>
-        <button onclick="cancelarEdicionPersonas(${gastoId})" class="btn-primary btn-sm" style="background:var(--accent2);margin-top:8px;">Cancelar</button>
-    `;
-    container.style.display = 'block';
-    document.getElementById('personasActual_' + gastoId).style.display = 'none';
-}
-
-function guardarPersonasCompra(gastoId) {
-    const g = datos.gastos.find(x => x.id === gastoId);
-    if (!g) return;
-    const checks = document.querySelectorAll('#editPersonas_' + gastoId + ' .edit-check-persona:checked');
-    const nuevasPersonas = [];
-    checks.forEach(c => nuevasPersonas.push(c.value));
-    if (nuevasPersonas.length === 0) { mostrarToast('⚠️ Debe haber al menos una persona'); return; }
-    g.persona = nuevasPersonas;
-    guardarYSinc();
-    verCuotas(gastoId);
-    mostrarToast('✅ Personas actualizadas');
-}
-
-function cancelarEdicionPersonas(gastoId) {
-    document.getElementById('editPersonas_' + gastoId).style.display = 'none';
-    document.getElementById('personasActual_' + gastoId).style.display = 'inline';
-}
 
         function cambiarValorCuota(gastoId, nuevoValor) {
             const g = datos.gastos.find(x => x.id === gastoId);
@@ -582,7 +544,6 @@ function cancelarEdicionPersonas(gastoId) {
             renderizarPanelActivo();
             actualizarGrafico();
             renderizarTotalesPersonas();
-            
         }
 
         function alertaVencimiento() {
@@ -609,36 +570,38 @@ function cancelarEdicionPersonas(gastoId) {
                 case 'historico': renderizarHistorico(); break;
             }
         }
-function renderizarGastos() {
-    const fp = document.getElementById('filtroPersona').value;
-    const fm = document.getElementById('filtroMes').value;
-    const fe = document.getElementById('filtroEstado').value;
-    let lista = [...datos.gastos];
-    if (fp !== 'todos') {
-        lista = lista.filter(g => {
-            const personas = personasDeCompra(g);
-            return personas.includes(fp);
-        });
-    }
-    if (fm) { const [y, m] = fm.split('-'); lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; }); }
-    if (fe === 'pendientes') lista = lista.filter(g => cuotasRestantes(g) > 0);
-    else if (fe === 'pagados') lista = lista.filter(g => cuotasRestantes(g) === 0);
-    const cont = document.getElementById('listaGastos');
-    if (lista.length === 0) { cont.innerHTML = '<div class="empty-state">📭 Sin resultados</div>'; return; }
-    cont.innerHTML = lista.sort((a,b) => new Date(b.fecha+'T00:00:00') - new Date(a.fecha+'T00:00:00')).map(g => {
-        const rest = cuotasRestantes(g);
-        const pag = g.cuotasPagadas ? g.cuotasPagadas.length : 0;
-        const cm = cuotaMensual(g);
-        const todo = rest === 0;
-        const personaMostrar = Array.isArray(g.persona) ? g.persona[0] : g.persona;
-        const personasCount = Array.isArray(g.persona) ? g.persona.length : 1;
-        const personaStr = personasCount > 1 ? personaMostrar + ' +' + (personasCount - 1) : personaMostrar;
-        return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
-            <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personaStr}</span></div></div>
-            <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
-        </div>`;
-    }).join('');
-}
+
+        function renderizarGastos() {
+            const fp = document.getElementById('filtroPersona').value;
+            const fm = document.getElementById('filtroMes').value;
+            const fe = document.getElementById('filtroEstado').value;
+            let lista = [...datos.gastos];
+            if (fp !== 'todos') {
+                lista = lista.filter(g => {
+                    const personas = personasDeCompra(g);
+                    return personas.includes(fp);
+                });
+            }
+            if (fm) { const [y, m] = fm.split('-'); lista = lista.filter(g => { const f = new Date(g.fecha + 'T00:00:00'); return f.getFullYear() === +y && f.getMonth() + 1 === +m; }); }
+            if (fe === 'pendientes') lista = lista.filter(g => cuotasRestantes(g) > 0);
+            else if (fe === 'pagados') lista = lista.filter(g => cuotasRestantes(g) === 0);
+            const cont = document.getElementById('listaGastos');
+            if (lista.length === 0) { cont.innerHTML = '<div class="empty-state">📭 Sin resultados</div>'; return; }
+            cont.innerHTML = lista.sort((a,b) => new Date(b.fecha+'T00:00:00') - new Date(a.fecha+'T00:00:00')).map(g => {
+                const rest = cuotasRestantes(g);
+                const pag = g.cuotasPagadas ? g.cuotasPagadas.length : 0;
+                const cm = cuotaMensual(g);
+                const todo = rest === 0;
+                const personaMostrar = Array.isArray(g.persona) ? g.persona[0] : g.persona;
+                const personasCount = Array.isArray(g.persona) ? g.persona.length : 1;
+                const personaStr = personasCount > 1 ? personaMostrar + ' +' + (personasCount - 1) : personaMostrar;
+                return `<div class="gasto-row ${todo ? 'pagado' : ''}" onclick="verCuotas(${g.id})" style="border-left:3px solid var(--accent);">
+                    <div class="gasto-info"><div class="gasto-desc">${g.descripcion}</div><div class="gasto-detalle">${formatoFecha(g.fecha)} <span class="gasto-persona">${personaStr}</span></div></div>
+                    <div class="gasto-monto-col"><div class="gasto-monto">$${cm.toLocaleString('es-CL')}/mes</div><div class="gasto-cuotas ${todo ? 'pagado' : 'pendiente'}">${todo ? '✅' : '🔄 '+pag+'/'+g.cuotas}</div></div>
+                </div>`;
+            }).join('');
+        }
+
         function renderizarCuotas() {
             const proy = proyeccionCuotas();
             const keys = Object.keys(proy).sort();
@@ -695,12 +658,7 @@ function renderizarGastos() {
             const pagSet = new Set(g.cuotasPagadas || []);
             const fechaInicio = fechaPrimeraCuota(g);
             let h = `<p><strong>${g.descripcion}</strong></p>
-                <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: 
-    <span id="personasActual_${g.id}" style="cursor:pointer;text-decoration:underline;color:var(--accent);" onclick="editarPersonasCompra(${g.id})">
-        <strong>${personasDeCompra(g).join(', ')}</strong> ✏️
-    </span>
-</p>
-<div id="editPersonas_${g.id}" style="display:none;margin:6px 0;padding:8px;background:rgba(255,255,255,0.03);border-radius:8px;"></div>
+                <p style="font-size:0.85rem;margin:6px 0;">👤 Personas: <strong>${personasDeCompra(g).join(', ')}</strong></p>
                 <p style="font-size:0.75rem;color:#888;">💵 ${cm.toLocaleString('es-CL')} por persona</p>
                 <p style="font-size:0.75rem;color:var(--accent);">💰 Total compra: $${cmTotal.toLocaleString('es-CL')} (entre ${personasDeCompra(g).length} persona(s))</p>
                 <p style="font-size:0.8rem;margin:4px 0;">📅 Primer cargo: <input type="month" id="editPC_${g.id}" value="${g.primerCargo || ''}" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-size:0.75rem;" onchange="cambiarPrimerCargo(${g.id}, this.value)"></p>
@@ -809,31 +767,27 @@ function renderizarGastos() {
         });
 
         document.getElementById('formPago').addEventListener('submit', e => {
-    e.preventDefault();
-    const monto = parseInt(document.getElementById('montoPago').value);
-    const montoFacturado = calcularMontoFacturado();
-    
-    if (monto >= montoFacturado) {
-        // Pago total: marcar una cuota de cada compra activa como pagada
-        datos.gastos.forEach(g => {
-            if (g.tipoFacturacion === 'despues') return;
-            if (g.cuotasPagadas && g.cuotasPagadas.length < g.cuotas) {
-                g.cuotasPagadas.push(g.cuotasPagadas.length);
+            e.preventDefault();
+            const monto = parseInt(document.getElementById('montoPago').value);
+            const montoFacturado = calcularMontoFacturado();
+            
+            if (monto >= montoFacturado) {
+                datos.gastos.forEach(g => {
+                    if (g.tipoFacturacion === 'despues') return;
+                    if (g.cuotasPagadas && g.cuotasPagadas.length < g.cuotas) {
+                        g.cuotasPagadas.push(g.cuotasPagadas.length);
+                    }
+                });
+                avanzarPeriodo();
+                mostrarToast('✅ Pago total. Período avanzado.');
+            } else {
+                mostrarToast('💵 Pago parcial registrado.');
             }
+            
+            guardarYSinc();
+            document.getElementById('modalPago').style.display = 'none';
+            document.getElementById('formPago').reset();
         });
-        avanzarPeriodo();
-        mostrarToast('✅ Pago total. Período avanzado.');
-    } else if (monto >= Math.round(montoFacturado * 0.17)) {
-        // Pago mínimo: no avanza período, solo registra
-        mostrarToast('💵 Pago mínimo registrado. El saldo sigue pendiente.');
-    } else {
-        mostrarToast('⚠️ Monto menor al pago mínimo.');
-    }
-    
-    guardarYSinc();
-    document.getElementById('modalPago').style.display = 'none';
-    document.getElementById('formPago').reset();
-});
 
         document.getElementById('tipoPago').addEventListener('change', function() {
             const inp = document.getElementById('montoPago');
